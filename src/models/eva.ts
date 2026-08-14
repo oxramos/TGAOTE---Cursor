@@ -122,126 +122,129 @@ export class Eva {
     this.body = new THREE.Group();
     this.group.add(this.body);
 
-    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.38, 28, 22), toon(PALETTE.evaYellow));
-    torso.scale.set(1.18, 1.02, 1.12);
-    torso.position.y = 0.34;
-    torso.castShadow = true;
-    this.body.add(torso);
-    this.body.add(outlineClone(torso, 0.065));
-
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 14), toon(PALETTE.evaBelly));
-    belly.position.set(0, 0.28, 0.2);
-    belly.scale.set(1.15, 0.95, 0.72);
-    this.body.add(belly);
-
     const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.4, 28, 22),
+      new THREE.SphereGeometry(0.44, 28, 22),
       toon(0xffffff, { map: evaFaceTexture() }),
     );
-    head.position.set(0, 0.82, 0.02);
+    head.position.set(0, 0.78, 0.04);
     head.rotation.y = -Math.PI / 2;
-    head.scale.set(1.02, 0.98, 1.0);
+    head.scale.set(1.04, 0.96, 1.02);
     head.castShadow = true;
     this.body.add(head);
     const headOut = outlineClone(head, 0.07);
     headOut.rotation.y = -Math.PI / 2;
     this.body.add(headOut);
 
+    for (let i = 0; i < 5; i++) {
+      const fluff = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), toon(i % 2 ? PALETTE.evaYellow : PALETTE.evaYellowDeep));
+      const a = -0.6 + (i / 4) * 1.2;
+      fluff.position.set(Math.sin(a) * 0.3, 0.92 + (i % 2) * 0.06, -0.22 - Math.cos(a) * 0.08);
+      fluff.scale.set(1.05, 0.7, 0.85);
+      this.body.add(fluff);
+    }
+
     const tuftColors = [PALETTE.evaYellowDeep, PALETTE.evaYellow, PALETTE.evaYellowDeep];
     tuftColors.forEach((col, i) => {
       const geo = new THREE.ExtrudeGeometry(featherShape(0.055, 0.2), { depth: 0.03, bevelEnabled: false });
       geo.center();
       const tuft = new THREE.Mesh(geo, toon(col));
-      tuft.position.set((i - 1) * 0.07, 1.18, -0.02);
+      tuft.position.set((i - 1) * 0.07, 1.16, -0.02);
       tuft.rotation.z = (i - 1) * 0.38;
       tuft.rotation.x = -0.15;
       this.body.add(tuft);
     });
 
-    const beakTop = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), toon(PALETTE.beak));
-    beakTop.scale.set(0.85, 0.52, 1.15);
-    beakTop.position.set(0, 0.74, 0.38);
-    const beakBot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), toon(0xe07030));
-    beakBot.scale.set(0.8, 0.4, 1.0);
-    beakBot.position.set(0, 0.69, 0.36);
+    const beakTop = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), toon(PALETTE.beak));
+    beakTop.scale.set(0.9, 0.55, 1.2);
+    beakTop.position.set(0, 0.7, 0.44);
+    const beakBot = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), toon(0xe07030));
+    beakBot.scale.set(0.85, 0.42, 1.05);
+    beakBot.position.set(0, 0.64, 0.42);
     this.body.add(beakTop, beakBot);
 
     this.tiara = new THREE.Group();
-    this.tiara.position.set(0, 1.12, 0.02);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.022, 10, 24), toon(0xf2c14e));
+    this.tiara.position.set(0, 1.08, 0.06);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.028, 10, 24), toon(0xf2c14e));
     band.rotation.x = Math.PI / 2;
-    band.scale.set(1, 1, 0.72);
+    band.scale.set(1, 1, 0.7);
     this.tiara.add(band);
-    const heartGeo = new THREE.ExtrudeGeometry(heartShape(0.13), {
-      depth: 0.05,
+    const heartGeo = new THREE.ExtrudeGeometry(heartShape(0.16), {
+      depth: 0.06,
       bevelEnabled: true,
-      bevelThickness: 0.012,
-      bevelSize: 0.012,
+      bevelThickness: 0.014,
+      bevelSize: 0.014,
       bevelSegments: 2,
     });
     heartGeo.center();
     const heart = new THREE.Mesh(heartGeo, toon(0xe23a3a));
-    heart.position.set(0, 0.14, 0.06);
+    heart.position.set(0, 0.16, 0.08);
     this.tiara.add(heart);
-    const gem = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), toon(0xffe8a0, { emissive: 0xf2c14e }));
-    gem.position.set(0, 0.16, 0.1);
+    const gem = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), toon(0xffe8a0, { emissive: 0xf2c14e }));
+    gem.position.set(0, 0.18, 0.12);
     this.tiara.add(gem);
 
     const plume = [
-      { col: 0xff8ba7, x: -0.1, z: -0.02, rot: -0.45 },
-      { col: 0x7bc47a, x: 0, z: -0.05, rot: 0 },
-      { col: 0x7ec8e8, x: 0.1, z: -0.02, rot: 0.45 },
+      { col: 0xff8ba7, x: -0.12, z: -0.04, rot: -0.5 },
+      { col: 0x7bc47a, x: 0, z: -0.08, rot: 0 },
+      { col: 0x7ec8e8, x: 0.12, z: -0.04, rot: 0.5 },
     ];
     for (const p of plume) {
-      const geo = new THREE.ExtrudeGeometry(featherShape(0.075, 0.28), { depth: 0.025, bevelEnabled: false });
+      const geo = new THREE.ExtrudeGeometry(featherShape(0.085, 0.32), { depth: 0.03, bevelEnabled: false });
       geo.center();
       const f = new THREE.Mesh(geo, toon(p.col));
-      f.position.set(p.x, 0.26, p.z);
+      f.position.set(p.x, 0.3, p.z);
       f.rotation.z = p.rot;
-      f.rotation.x = -0.2;
+      f.rotation.x = -0.25;
       this.tiara.add(f);
     }
     this.body.add(this.tiara);
 
-    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 8, 18), toon(0xfff6ea));
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), toon(PALETTE.evaYellow));
+    chest.scale.set(1.15, 0.7, 1.05);
+    chest.position.set(0, 0.42, 0.02);
+    this.body.add(chest);
+
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 8, 18), toon(0xfff6ea));
     collar.rotation.x = Math.PI / 2;
-    collar.position.set(0, 0.54, 0.04);
+    collar.position.set(0, 0.5, 0.04);
     this.body.add(collar);
 
     const top = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.36, 0.22, 20),
+      new THREE.CylinderGeometry(0.26, 0.32, 0.2, 20),
       toon(0xffffff, { map: dressTexture() }),
     );
-    top.position.set(0, 0.4, 0);
+    top.position.set(0, 0.38, 0);
+    top.castShadow = true;
     this.body.add(top);
 
     const skirtPts = [
-      new THREE.Vector2(0.28, 0.12),
-      new THREE.Vector2(0.32, 0.02),
-      new THREE.Vector2(0.4, -0.1),
-      new THREE.Vector2(0.5, -0.24),
-      new THREE.Vector2(0.54, -0.34),
+      new THREE.Vector2(0.3, 0.1),
+      new THREE.Vector2(0.34, 0.02),
+      new THREE.Vector2(0.4, -0.08),
+      new THREE.Vector2(0.44, -0.16),
     ];
-    const skirt = new THREE.Mesh(new THREE.LatheGeometry(skirtPts, 24), toon(PALETTE.skirt, { side: THREE.DoubleSide }));
-    skirt.position.y = 0.28;
+    const skirt = new THREE.Mesh(
+      new THREE.LatheGeometry(skirtPts, 24),
+      toon(0xf03434, { emissive: 0x6a1010, side: THREE.DoubleSide }),
+    );
+    skirt.position.y = 0.32;
     skirt.castShadow = true;
     this.body.add(skirt);
-    this.body.add(outlineClone(skirt, 0.04));
 
-    const petticoatPts = [new THREE.Vector2(0.42, -0.22), new THREE.Vector2(0.5, -0.32), new THREE.Vector2(0.52, -0.36)];
+    const petticoatPts = [new THREE.Vector2(0.36, -0.12), new THREE.Vector2(0.42, -0.18), new THREE.Vector2(0.44, -0.2)];
     const petticoat = new THREE.Mesh(new THREE.LatheGeometry(petticoatPts, 20), toon(0xfff1dc, { side: THREE.DoubleSide }));
-    petticoat.position.y = 0.28;
+    petticoat.position.y = 0.32;
     this.body.add(petticoat);
 
-    const waist = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.028, 8, 20), toon(0xc41f28));
+    const waist = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 8, 20), toon(0xc41f28));
     waist.rotation.x = Math.PI / 2;
-    waist.position.y = 0.38;
+    waist.position.y = 0.4;
     this.body.add(waist);
 
-    this.leftWing = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), toon(PALETTE.evaYellow));
-    this.leftWing.scale.set(0.55, 0.95, 1.35);
-    this.leftWing.position.set(-0.44, 0.38, 0.04);
-    this.leftWing.rotation.z = 0.35;
+    this.leftWing = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), toon(PALETTE.evaYellowDeep));
+    this.leftWing.scale.set(0.5, 0.85, 1.45);
+    this.leftWing.position.set(-0.4, 0.4, 0.06);
+    this.leftWing.rotation.z = 0.45;
     this.rightWing = this.leftWing.clone();
     this.rightWing.position.x *= -1;
     this.rightWing.rotation.z *= -1;
@@ -249,8 +252,8 @@ export class Eva {
 
     const makeFoot = (x: number) => {
       const g = new THREE.Group();
-      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.04, 0.2, 8), toon(PALETTE.beak));
-      shin.position.y = 0.14;
+      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.046, 0.26, 8), toon(PALETTE.beak));
+      shin.position.y = 0.16;
       g.add(shin);
       const palm = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), toon(PALETTE.beak));
       palm.scale.set(1.1, 0.38, 1.35);
@@ -287,7 +290,7 @@ export class Eva {
     this.spyglass.visible = false;
     this.body.add(this.spyglass);
 
-    this.group.scale.setScalar(1.08);
+    this.group.scale.setScalar(1.18);
     const blob = new THREE.Mesh(
       new THREE.CircleGeometry(0.42, 16),
       new THREE.MeshBasicMaterial({ color: 0x1a2030, transparent: true, opacity: 0.28, depthWrite: false }),

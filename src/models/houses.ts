@@ -39,7 +39,7 @@ function heartShape(s = 1): THREE.Shape {
   return sh;
 }
 
-function pitchedRoof(width: number, depth: number, rise: number, color: number, overhang = 0.32): THREE.Group {
+function pitchedRoof(width: number, depth: number, rise: number, color: number, overhang = 0.42): THREE.Group {
   const g = new THREE.Group();
   const extra = overhang;
   const hypot = Math.hypot(width / 2, rise);
@@ -50,12 +50,14 @@ function pitchedRoof(width: number, depth: number, rise: number, color: number, 
   const roofDark = new THREE.Color(color).offsetHSL(0, 0, -0.08).getHex();
 
   for (const side of [-1, 1] as const) {
-    const panel = box(slopeLen, 0.12, depth + overhang * 2, color, side * cx, cy, 0);
+    const panel = box(slopeLen, 0.22, depth + overhang * 2, color, side * cx, cy, 0);
     panel.rotation.z = side === -1 ? angle : -angle;
     g.add(panel);
-    const tile = box(slopeLen * 0.92, 0.04, 0.08, roofDark, side * cx, cy + 0.06, 0);
-    tile.rotation.z = panel.rotation.z;
-    g.add(tile);
+    for (const t of [-0.28, 0, 0.28]) {
+      const tile = box(slopeLen * 0.9, 0.05, 0.07, roofDark, side * cx, cy + 0.13, t * (depth * 0.4));
+      tile.rotation.z = panel.rotation.z;
+      g.add(tile);
+    }
   }
 
   g.add(box(0.16, 0.14, depth + overhang * 2 + 0.08, 0x8a1c24, 0, rise + 0.04, 0));
@@ -97,16 +99,16 @@ function prettyWindow(
   root.position.set(x, y, z);
   root.rotation.y = rotY;
 
-  root.add(box(w + 0.14, h + 0.14, 0.1, PALETTE.roof, 0, 0, 0));
+  root.add(box(w + 0.2, h + 0.2, 0.14, PALETTE.roof, 0, 0, 0));
   const glass = new THREE.Mesh(
-    new THREE.PlaneGeometry(w - 0.04, h - 0.04),
+    new THREE.PlaneGeometry(w - 0.02, h - 0.02),
     toon(0xf4b3c8, { emissive: 0xe89ab0 }),
   );
-  glass.position.z = 0.06;
+  glass.position.z = 0.08;
   root.add(glass);
-  root.add(box(0.045, h - 0.1, 0.06, 0xfff6ea, 0, 0, 0.07));
-  root.add(box(w - 0.1, 0.045, 0.06, 0xfff6ea, 0, 0, 0.07));
-  root.add(box(w + 0.22, 0.08, 0.18, 0xfff1dc, 0, -h / 2 - 0.05, 0.04));
+  root.add(box(0.07, h - 0.08, 0.08, 0xfff6ea, 0, 0, 0.09));
+  root.add(box(w - 0.08, 0.07, 0.08, 0xfff6ea, 0, 0, 0.09));
+  root.add(box(w + 0.28, 0.1, 0.22, 0xfff1dc, 0, -h / 2 - 0.06, 0.05));
 
   if (withBox) {
     const planter = box(w + 0.28, 0.16, 0.22, PALETTE.wood, 0, -h / 2 - 0.16, 0.14);
