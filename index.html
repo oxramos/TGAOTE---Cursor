@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Brave Adventures of Tibu-Eva</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='30' r='22' fill='%23FFE14A'/%3E%3Cellipse cx='32' cy='36' rx='6' ry='4' fill='%23FF8A3D'/%3E%3Ccircle cx='22' cy='32' r='4' fill='%23FF8BA7' opacity='.85'/%3E%3Ccircle cx='42' cy='32' r='4' fill='%23FF8BA7' opacity='.85'/%3E%3Cpath d='M18 26c4 2 8 2 12 0' stroke='%232a1a12' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M34 26c4 2 8 2 12 0' stroke='%232a1a12' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,700&family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="title-screen" class="screen">
+        <div class="title-sky">
+          <div class="title-stars"></div>
+          <div class="title-boat-icon">⛵</div>
+          <div class="title-feather left"></div>
+          <div class="title-feather right"></div>
+          <div class="title-cloud">
+            <p class="title-kicker">The Brave Adventures of</p>
+            <h1 class="title-logo">Tibu<span class="gem"></span>Eva</h1>
+          </div>
+        </div>
+        <div class="title-waves"></div>
+        <div class="title-panel">
+          <p>
+            Tibu-Eva is a young chick excited to explore the high seas in her red boat.
+            Eva lives on an island collecting treasures and treats. She travels back and
+            forth between many islands and has soaring adventures along the way.
+          </p>
+          <div class="title-actions">
+            <button id="btn-new" class="btn primary">Set sail</button>
+            <button id="btn-continue" class="btn" hidden>Continue</button>
+          </div>
+          <p class="title-hint">WASD to move · Mouse to look · E to interact · F spyglass · Tab inventory</p>
+        </div>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div class="hud-top">
+          <div class="hud-chip" id="hud-day">Day 1 · Morning</div>
+          <div class="hud-chip" id="hud-place">Home Isle</div>
+          <div class="hud-chip treats" id="hud-treats">Treats 0</div>
+        </div>
+        <div id="hud-prompt" class="hud-prompt hidden"></div>
+        <div id="banner" class="banner hidden"></div>
+        <div class="hud-bottom">
+          <div class="hud-help">
+            E interact · F spyglass · Tab bag · Q decorate at home · Esc pause
+          </div>
+        </div>
+        <div id="spyglass-rim" class="hidden"></div>
+      </div>
+
+      <div id="pause-screen" class="screen hidden">
+        <div class="panel">
+          <h2>Paused</h2>
+          <p>The sea can wait a moment.</p>
+          <button id="btn-resume" class="btn primary">Keep exploring</button>
+          <button id="btn-save" class="btn">Save game</button>
+          <button id="btn-title" class="btn">Return to title</button>
+        </div>
+      </div>
+
+      <div id="dialogue" class="hidden">
+        <div class="dialogue-card">
+          <div class="dialogue-portrait" id="dlg-portrait"></div>
+          <div class="dialogue-body">
+            <div class="dialogue-name" id="dlg-name"></div>
+            <p id="dlg-text"></p>
+            <div id="dlg-choices" class="dialogue-choices"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="inspect" class="hidden">
+        <div class="inspect-frame">
+          <canvas id="inspect-canvas"></canvas>
+          <div class="inspect-meta">
+            <div class="rarity" id="inspect-rarity"></div>
+            <h2 id="inspect-name"></h2>
+            <p id="inspect-desc"></p>
+            <p class="inspect-hint">Drag to turn it in the light · Esc to tuck it away</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="inventory" class="hidden">
+        <div class="panel wide">
+          <div class="inv-header">
+            <h2>Eva's Satchel</h2>
+            <button id="btn-close-inv" class="btn tiny">Close</button>
+          </div>
+          <div class="inv-tabs">
+            <button class="tab active" data-tab="finds">Finds</button>
+            <button class="tab" data-tab="decor">Decor</button>
+          </div>
+          <div id="inv-grid" class="inv-grid"></div>
+        </div>
+      </div>
+
+      <div id="shelf-picker" class="hidden">
+        <div class="panel wide">
+          <h2>Place on the shelf</h2>
+          <p class="muted">Choose a treasure to display in this nook.</p>
+          <div id="shelf-grid" class="inv-grid"></div>
+          <button id="btn-close-shelf" class="btn">Cancel</button>
+        </div>
+      </div>
+
+      <div id="sleep-overlay" class="screen hidden">
+        <div class="sleep-card">
+          <p class="title-kicker" id="sleep-kicker">A hush falls over the sea</p>
+          <h2 id="sleep-title">Day 2</h2>
+          <p id="sleep-line">Eva dreams of shells that sing when the tide turns.</p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
