@@ -72,7 +72,8 @@ export function buildArchipelago(scene: THREE.Scene): { houses: HouseAnchor[]; c
       group.rotation.y = house.yaw;
       scene.add(group);
       houses.push({ kind: house.kind, island: isl.id, position: pos.clone(), yaw: house.yaw });
-      colliders.push({ x: pos.x, z: pos.z, r: house.kind === "pebble" ? 2.2 : 2.6 });
+      const r = house.kind === "home" ? 2.7 : house.kind === "pebble" ? 2.25 : house.kind === "coral" ? 2.4 : 2.65;
+      colliders.push({ x: pos.x, z: pos.z, r });
     }
   }
 

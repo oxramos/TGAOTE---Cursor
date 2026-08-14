@@ -331,6 +331,14 @@ body,
   background-clip: padding-box, border-box;
 }
 
+.banner.found {
+  top: auto;
+  bottom: 110px;
+  font-size: 22px;
+  padding: 10px 20px;
+  pointer-events: none;
+}
+
 #spyglass-rim {
   position: absolute;
   inset: 0;

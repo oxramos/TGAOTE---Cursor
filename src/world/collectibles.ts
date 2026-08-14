@@ -118,7 +118,6 @@ export class CollectibleWorld {
 
   take(p: Pickup) {
     p.taken = true;
-    p.mesh.visible = false;
   }
 
   def(p: Pickup): ItemDef {

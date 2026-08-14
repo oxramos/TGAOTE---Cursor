@@ -35,6 +35,6 @@ Then open the local Vite URL. `npm run build` typechecks and bundles to `dist/`.
 - **Brineharbor** — Captain Brine the otter
 - **Whisper Reef** & **Lookout Stack** — hush-hush places for legendary finds
 
-Shells and rocks come in common, uncommon, rare, and legendary. Rarer ones throw light columns and sparkles you can spot from the boat. Pick one up to turn it in the light.
+Shells and rocks come in common, uncommon, rare, and legendary. Rarer ones throw light columns and sparkles you can spot from the boat. Pick one up and it hops into Eva's satchel — open the bag (Tab) and tap a find if you want to turn it in the light.
 
 Progress saves in the browser (`tibu-eva-save-v1`).

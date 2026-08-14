@@ -16,6 +16,7 @@ import { createNpc } from "./models/animals";
 import { InspectView } from "./inspect";
 import { AudioBed } from "./audio";
 import { freshSave, loadSave, writeSave } from "./save";
+import { glowSprite } from "./materials";
 import { ITEMS, ISLANDS, NPCS, SLEEP_LINES } from "./catalog";
 import type { GameState, NpcId, SaveData, TradeRecipe } from "./types";
 import type { HouseKind } from "./models/houses";
@@ -67,6 +68,11 @@ export class Game {
   exitPos = new THREE.Vector3();
   invTab: "finds" | "decor" = "finds";
   shelfIndex = 0;
+  private moveFwd = new THREE.Vector3();
+  private moveRight = new THREE.Vector3();
+  private moveUp = new THREE.Vector3(0, 1, 0);
+  private flyLoot: { mesh: THREE.Group; origin: THREE.Vector3; t: number }[] = [];
+  private sparkles: { sprite: THREE.Sprite; life: number }[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -249,7 +255,16 @@ export class Game {
       this.collect.update(this.elapsed);
       this.world.traverse((o) => {
         if (o.name === "buoy") o.position.y = 0.25 + Math.sin(this.elapsed * 1.5 + o.position.x) * 0.12;
+        if (o.name === "chimney-puff") {
+          const phase = (o.userData.phase as number) ?? 0;
+          const base = (o.userData.baseY as number) ?? o.position.y;
+          const u = (this.elapsed * 0.35 + phase) % 1;
+          o.position.y = base + u * 0.85;
+          const mat = (o as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          if (mat.opacity !== undefined) mat.opacity = 0.32 * (1 - u);
+        }
       });
+      this.updateLootFly(dt);
     }
 
     if (this.state === "dialogue") {
@@ -292,7 +307,7 @@ export class Game {
 
     if (this.sailing) {
       const axis = this.input.moveAxis();
-      this.boatYaw -= axis.x * dt * 1.7;
+      this.boatYaw += axis.x * dt * 1.7;
       const accel = axis.z < 0 ? 7.5 : axis.z > 0 ? -4 : -1.8;
       this.boatSpeed = THREE.MathUtils.clamp(this.boatSpeed + accel * dt, -2, 11);
       const fx = Math.sin(this.boatYaw);
@@ -328,19 +343,12 @@ export class Game {
     const axis = this.input.moveAxis();
     if (!axis.x && !axis.z) return;
     const speed = 4.6;
-    let fx: number;
-    let fz: number;
-    if (onWorld) {
-      fx = Math.sin(this.camYaw);
-      fz = Math.cos(this.camYaw);
-    } else {
-      fx = Math.sin(this.camYaw);
-      fz = Math.cos(this.camYaw);
-    }
-    const rx = Math.cos(this.camYaw);
-    const rz = -Math.sin(this.camYaw);
-    const mx = (rx * axis.x + fx * -axis.z) * speed * dt;
-    const mz = (rz * axis.x + fz * -axis.z) * speed * dt;
+    // Must match updateCamera: camera sits at look - (sin yaw, cos yaw), so
+    // world-forward (into the view) is (sin, cos) and screen-right is forward × up.
+    this.moveFwd.set(Math.sin(this.camYaw), 0, Math.cos(this.camYaw));
+    this.moveRight.crossVectors(this.moveFwd, this.moveUp).normalize();
+    const mx = (this.moveRight.x * axis.x + this.moveFwd.x * -axis.z) * speed * dt;
+    const mz = (this.moveRight.z * axis.x + this.moveFwd.z * -axis.z) * speed * dt;
     const nx = this.eva.group.position.x + mx;
     const nz = this.eva.group.position.z + mz;
     if (onWorld) {
@@ -482,7 +490,7 @@ export class Game {
   }
 
   private doorWorld(h: HouseAnchor) {
-    const depth = h.kind === "coral" ? 1.7 : h.kind === "mallow" ? 2.2 : 2.0;
+    const depth = h.kind === "home" ? 2.9 : h.kind === "coral" ? 1.7 : h.kind === "mallow" ? 2.2 : 2.0;
     return new THREE.Vector3(Math.sin(h.yaw) * depth, 0, Math.cos(h.yaw) * depth).add(h.position);
   }
 
@@ -611,8 +619,50 @@ export class Game {
     this.save.items[p.item] = (this.save.items[p.item] ?? 0) + 1;
     const def = ITEMS[p.item];
     this.audio.chime(def.rarity);
-    this.openInspect(p.item);
-    this.toast(`Found ${def.name}!`);
+    this.eva.playPickup();
+    this.flyLoot.push({ mesh: p.mesh, origin: p.mesh.position.clone(), t: 0 });
+    this.burstSparkles(p.mesh.position);
+    this.toast(`Found ${def.name}!`, "found");
+  }
+
+  private updateLootFly(dt: number) {
+    const hands = this.eva.group.position;
+    for (let i = this.flyLoot.length - 1; i >= 0; i--) {
+      const f = this.flyLoot[i];
+      f.t += dt;
+      const u = Math.min(1, f.t / 0.5);
+      const e = 1 - (1 - u) * (1 - u) * (1 - u);
+      f.mesh.position.lerpVectors(f.origin, hands, e);
+      f.mesh.position.y += 0.7 * e + Math.sin(u * Math.PI) * 0.85;
+      f.mesh.scale.setScalar(1 - e * 0.88);
+      f.mesh.rotation.y += dt * 10;
+      if (u >= 1) {
+        f.mesh.visible = false;
+        f.mesh.scale.setScalar(1);
+        this.flyLoot.splice(i, 1);
+      }
+    }
+    for (let i = this.sparkles.length - 1; i >= 0; i--) {
+      const s = this.sparkles[i];
+      s.life -= dt;
+      s.sprite.position.y += dt * 0.9;
+      s.sprite.scale.multiplyScalar(1 + dt * 1.4);
+      const mat = s.sprite.material;
+      mat.opacity = Math.max(0, s.life / 0.55);
+      if (s.life <= 0) {
+        s.sprite.parent?.remove(s.sprite);
+        this.sparkles.splice(i, 1);
+      }
+    }
+  }
+
+  private burstSparkles(at: THREE.Vector3) {
+    for (let i = 0; i < 8; i++) {
+      const sprite = glowSprite(0xfff1a8, 0.45);
+      sprite.position.set(at.x + (Math.random() - 0.5) * 0.4, at.y + 0.2, at.z + (Math.random() - 0.5) * 0.4);
+      this.world.add(sprite);
+      this.sparkles.push({ sprite, life: 0.45 + Math.random() * 0.2 });
+    }
   }
 
   private openInspect(itemId: string) {
@@ -771,11 +821,12 @@ export class Game {
     }
   }
 
-  toast(text: string) {
+  toast(text: string, kind?: "found") {
     const b = $("banner");
     b.textContent = text;
+    b.classList.toggle("found", kind === "found");
     b.classList.remove("hidden");
-    this.bannerT = 3.2;
+    this.bannerT = kind === "found" ? 2.1 : 3.2;
   }
 
   persist() {

@@ -11,6 +11,100 @@ function heartShape(s = 1): THREE.Shape {
   return sh;
 }
 
+function featherShape(w = 0.07, h = 0.34): THREE.Shape {
+  const sh = new THREE.Shape();
+  sh.moveTo(0, 0);
+  sh.quadraticCurveTo(w, h * 0.35, w * 0.25, h);
+  sh.quadraticCurveTo(0, h * 1.08, -w * 0.25, h);
+  sh.quadraticCurveTo(-w, h * 0.35, 0, 0);
+  return sh;
+}
+
+function canvasTex(draw: (ctx: CanvasRenderingContext2D, size: number) => void, size = 512): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  draw(c.getContext("2d")!, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function evaFaceTexture(): THREE.CanvasTexture {
+  return canvasTex((ctx, s) => {
+    ctx.fillStyle = "#FFE14A";
+    ctx.fillRect(0, 0, s, s);
+
+    const cx = s * 0.5;
+    const cy = s * 0.5;
+
+    const glow = ctx.createRadialGradient(cx, cy - s * 0.08, s * 0.02, cx, cy, s * 0.28);
+    glow.addColorStop(0, "rgba(255,255,232,0.7)");
+    glow.addColorStop(1, "rgba(255,225,74,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, s, s);
+
+    const blush = (x: number) => {
+      const g = ctx.createRadialGradient(x, cy + s * 0.04, 2, x, cy + s * 0.04, s * 0.09);
+      g.addColorStop(0, "rgba(255,120,150,0.72)");
+      g.addColorStop(1, "rgba(255,139,167,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(x, cy + s * 0.04, s * 0.09, s * 0.055, 0, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    blush(cx - s * 0.155);
+    blush(cx + s * 0.155);
+
+    ctx.strokeStyle = "#2A1A12";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    const eye = (x: number) => {
+      ctx.lineWidth = s * 0.016;
+      ctx.beginPath();
+      ctx.arc(x, cy + s * 0.012, s * 0.042, Math.PI, 0, true);
+      ctx.stroke();
+      ctx.lineWidth = s * 0.01;
+      const lashes: [number, number, number][] = [
+        [-0.7, -s * 0.028, s * 0.038],
+        [0, -s * 0.04, s * 0.046],
+        [0.7, -s * 0.028, s * 0.038],
+      ];
+      for (const [ang, dy, len] of lashes) {
+        ctx.beginPath();
+        ctx.moveTo(x + Math.sin(ang) * s * 0.012, cy - s * 0.012);
+        ctx.lineTo(x + Math.sin(ang) * len * 0.55, cy - s * 0.012 + dy);
+        ctx.stroke();
+      }
+    };
+    eye(cx - s * 0.078);
+    eye(cx + s * 0.078);
+
+    ctx.lineWidth = s * 0.008;
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.12, cy - s * 0.055);
+    ctx.quadraticCurveTo(cx - s * 0.078, cy - s * 0.078, cx - s * 0.04, cy - s * 0.05);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + s * 0.12, cy - s * 0.055);
+    ctx.quadraticCurveTo(cx + s * 0.078, cy - s * 0.078, cx + s * 0.04, cy - s * 0.05);
+    ctx.stroke();
+  });
+}
+
+function dressTexture(): THREE.CanvasTexture {
+  return canvasTex((ctx, s) => {
+    const stripe = s / 11;
+    for (let y = 0; y < s; y += stripe) {
+      ctx.fillStyle = Math.floor(y / stripe) % 2 === 0 ? "#FFF6EA" : "#E23A3A";
+      ctx.fillRect(0, y, s, stripe + 1);
+    }
+  }, 256);
+}
+
 export class Eva {
   group = new THREE.Group();
   body: THREE.Group;
@@ -22,133 +116,180 @@ export class Eva {
   tiara: THREE.Group;
   bob = 0;
   holdingGlass = false;
+  pickupT = 0;
 
   constructor() {
     this.body = new THREE.Group();
     this.group.add(this.body);
 
-    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.42, 22, 18), toon(PALETTE.evaYellow));
-    torso.scale.set(1.02, 1.0, 1.02);
+    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.38, 28, 22), toon(PALETTE.evaYellow));
+    torso.scale.set(1.18, 1.02, 1.12);
+    torso.position.y = 0.34;
     torso.castShadow = true;
     this.body.add(torso);
-    this.body.add(outlineClone(torso, 0.07));
+    this.body.add(outlineClone(torso, 0.065));
 
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), toon(PALETTE.evaBelly));
-    belly.position.set(0, -0.06, 0.18);
-    belly.scale.set(1.1, 0.9, 0.7);
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 14), toon(PALETTE.evaBelly));
+    belly.position.set(0, 0.28, 0.2);
+    belly.scale.set(1.15, 0.95, 0.72);
     this.body.add(belly);
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 22, 18), toon(PALETTE.evaYellow));
-    head.position.set(0, 0.48, 0.04);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 28, 22),
+      toon(0xffffff, { map: evaFaceTexture() }),
+    );
+    head.position.set(0, 0.82, 0.02);
+    head.rotation.y = -Math.PI / 2;
+    head.scale.set(1.02, 0.98, 1.0);
     head.castShadow = true;
     this.body.add(head);
     const headOut = outlineClone(head, 0.07);
+    headOut.rotation.y = -Math.PI / 2;
     this.body.add(headOut);
 
-    const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), toon(PALETTE.evaYellowDeep));
-    tuft.position.set(0, 0.82, 0.02);
-    tuft.scale.set(0.7, 1.3, 0.5);
-    this.body.add(tuft);
+    const tuftColors = [PALETTE.evaYellowDeep, PALETTE.evaYellow, PALETTE.evaYellowDeep];
+    tuftColors.forEach((col, i) => {
+      const geo = new THREE.ExtrudeGeometry(featherShape(0.055, 0.2), { depth: 0.03, bevelEnabled: false });
+      geo.center();
+      const tuft = new THREE.Mesh(geo, toon(col));
+      tuft.position.set((i - 1) * 0.07, 1.18, -0.02);
+      tuft.rotation.z = (i - 1) * 0.38;
+      tuft.rotation.x = -0.15;
+      this.body.add(tuft);
+    });
 
-    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.2, 10), toon(PALETTE.beak));
-    beak.rotation.x = Math.PI / 2;
-    beak.position.set(0, 0.44, 0.38);
-    this.body.add(beak);
-
-    const blushMat = toon(PALETTE.blush);
-    const blushL = new THREE.Mesh(new THREE.CircleGeometry(0.09, 10), blushMat);
-    blushL.position.set(-0.22, 0.42, 0.32);
-    const blushR = blushL.clone();
-    blushR.position.x *= -1;
-    this.body.add(blushL, blushR);
-
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x2a1a12 });
-    const makeEye = (x: number) => {
-      const g = new THREE.Group();
-      const lid = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.022, 6, 12, Math.PI), eyeMat);
-      lid.rotation.z = Math.PI;
-      lid.position.set(x, 0.54, 0.32);
-      lid.rotation.x = -0.2;
-      g.add(lid);
-      for (let i = 0; i < 3; i++) {
-        const lash = new THREE.Mesh(new THREE.CapsuleGeometry(0.01, 0.07, 3, 6), eyeMat);
-        lash.position.set(x - 0.05 + i * 0.05, 0.62, 0.32);
-        lash.rotation.z = -0.55 + i * 0.55;
-        g.add(lash);
-      }
-      return g;
-    };
-    this.body.add(makeEye(-0.13), makeEye(0.13));
+    const beakTop = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), toon(PALETTE.beak));
+    beakTop.scale.set(0.85, 0.52, 1.15);
+    beakTop.position.set(0, 0.74, 0.38);
+    const beakBot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), toon(0xe07030));
+    beakBot.scale.set(0.8, 0.4, 1.0);
+    beakBot.position.set(0, 0.69, 0.36);
+    this.body.add(beakTop, beakBot);
 
     this.tiara = new THREE.Group();
-    this.tiara.position.set(0, 0.78, 0);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.018, 8, 20), toon(0xf2c14e));
-    ring.rotation.x = Math.PI / 2;
-    this.tiara.add(ring);
-    const heartGeo = new THREE.ExtrudeGeometry(heartShape(0.11), { depth: 0.04, bevelEnabled: false });
+    this.tiara.position.set(0, 1.12, 0.02);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.022, 10, 24), toon(0xf2c14e));
+    band.rotation.x = Math.PI / 2;
+    band.scale.set(1, 1, 0.72);
+    this.tiara.add(band);
+    const heartGeo = new THREE.ExtrudeGeometry(heartShape(0.13), {
+      depth: 0.05,
+      bevelEnabled: true,
+      bevelThickness: 0.012,
+      bevelSize: 0.012,
+      bevelSegments: 2,
+    });
     heartGeo.center();
     const heart = new THREE.Mesh(heartGeo, toon(0xe23a3a));
-    heart.position.set(0, 0.12, 0.02);
+    heart.position.set(0, 0.14, 0.06);
     this.tiara.add(heart);
-    const feathers = [0xff8ba7, 0x7bc47a, 0x7ec8e8];
-    feathers.forEach((col, i) => {
-      const f = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), toon(col));
-      f.scale.set(0.45, 1.4, 0.25);
-      f.position.set((i - 1) * 0.1, 0.16, -0.04);
-      f.rotation.z = (i - 1) * 0.4;
+    const gem = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), toon(0xffe8a0, { emissive: 0xf2c14e }));
+    gem.position.set(0, 0.16, 0.1);
+    this.tiara.add(gem);
+
+    const plume = [
+      { col: 0xff8ba7, x: -0.1, z: -0.02, rot: -0.45 },
+      { col: 0x7bc47a, x: 0, z: -0.05, rot: 0 },
+      { col: 0x7ec8e8, x: 0.1, z: -0.02, rot: 0.45 },
+    ];
+    for (const p of plume) {
+      const geo = new THREE.ExtrudeGeometry(featherShape(0.075, 0.28), { depth: 0.025, bevelEnabled: false });
+      geo.center();
+      const f = new THREE.Mesh(geo, toon(p.col));
+      f.position.set(p.x, 0.26, p.z);
+      f.rotation.z = p.rot;
+      f.rotation.x = -0.2;
       this.tiara.add(f);
-    });
+    }
     this.body.add(this.tiara);
 
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.18, 16), toon(PALETTE.top));
-    top.position.set(0, 0.14, 0);
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 8, 18), toon(0xfff6ea));
+    collar.rotation.x = Math.PI / 2;
+    collar.position.set(0, 0.54, 0.04);
+    this.body.add(collar);
+
+    const top = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.36, 0.22, 20),
+      toon(0xffffff, { map: dressTexture() }),
+    );
+    top.position.set(0, 0.4, 0);
     this.body.add(top);
 
-    const skirt = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.36, 0.5, 0.3, 16, 1, true),
-      toon(PALETTE.skirt),
-    );
-    skirt.position.set(0, -0.22, 0);
+    const skirtPts = [
+      new THREE.Vector2(0.28, 0.12),
+      new THREE.Vector2(0.32, 0.02),
+      new THREE.Vector2(0.4, -0.1),
+      new THREE.Vector2(0.5, -0.24),
+      new THREE.Vector2(0.54, -0.34),
+    ];
+    const skirt = new THREE.Mesh(new THREE.LatheGeometry(skirtPts, 24), toon(PALETTE.skirt, { side: THREE.DoubleSide }));
+    skirt.position.y = 0.28;
     skirt.castShadow = true;
     this.body.add(skirt);
-    const waist = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.03, 6, 16), toon(PALETTE.skirt));
+    this.body.add(outlineClone(skirt, 0.04));
+
+    const petticoatPts = [new THREE.Vector2(0.42, -0.22), new THREE.Vector2(0.5, -0.32), new THREE.Vector2(0.52, -0.36)];
+    const petticoat = new THREE.Mesh(new THREE.LatheGeometry(petticoatPts, 20), toon(0xfff1dc, { side: THREE.DoubleSide }));
+    petticoat.position.y = 0.28;
+    this.body.add(petticoat);
+
+    const waist = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.028, 8, 20), toon(0xc41f28));
     waist.rotation.x = Math.PI / 2;
-    waist.position.y = -0.08;
+    waist.position.y = 0.38;
     this.body.add(waist);
 
-    this.leftWing = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), toon(PALETTE.beak));
-    this.leftWing.scale.set(0.55, 0.9, 1.2);
-    this.leftWing.position.set(-0.42, 0.08, 0.02);
+    this.leftWing = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), toon(PALETTE.evaYellow));
+    this.leftWing.scale.set(0.55, 0.95, 1.35);
+    this.leftWing.position.set(-0.44, 0.38, 0.04);
+    this.leftWing.rotation.z = 0.35;
     this.rightWing = this.leftWing.clone();
     this.rightWing.position.x *= -1;
+    this.rightWing.rotation.z *= -1;
     this.body.add(this.leftWing, this.rightWing);
 
-    this.leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.18, 6), toon(PALETTE.skirt));
-    this.leftLeg.position.set(-0.12, -0.42, 0.04);
-    this.rightLeg = this.leftLeg.clone();
-    this.rightLeg.position.x *= -1;
-    const footL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), toon(PALETTE.beak));
-    footL.scale.set(1, 0.4, 1.4);
-    footL.position.set(-0.12, -0.52, 0.06);
-    const footR = footL.clone();
-    footR.position.x *= -1;
-    this.group.add(this.leftLeg, this.rightLeg, footL, footR);
+    const makeFoot = (x: number) => {
+      const g = new THREE.Group();
+      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.04, 0.2, 8), toon(PALETTE.beak));
+      shin.position.y = 0.14;
+      g.add(shin);
+      const palm = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), toon(PALETTE.beak));
+      palm.scale.set(1.1, 0.38, 1.35);
+      palm.position.set(0, 0.045, 0.03);
+      g.add(palm);
+      for (const tz of [-0.04, 0, 0.05]) {
+        const toe = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.07, 3, 6), toon(PALETTE.beak));
+        toe.rotation.x = Math.PI / 2;
+        toe.position.set(tz * 1.4, 0.045, 0.08);
+        g.add(toe);
+      }
+      g.position.x = x;
+      return { group: g, shin };
+    };
+    const footL = makeFoot(-0.13);
+    const footR = makeFoot(0.13);
+    this.leftLeg = footL.shin;
+    this.rightLeg = footR.shin;
+    this.group.add(footL.group, footR.group);
+    this.body.position.y = 0.26;
 
     this.spyglass = new THREE.Group();
     const tubeA = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.34, 10), toon(0xff8a3d));
     const tubeB = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.16, 10), toon(0x3a7ca5));
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.05, 12), toon(0x9fe7ff, { emissive: 0x7ec8e8 }));
     tubeA.rotation.z = Math.PI / 2;
     tubeB.rotation.z = Math.PI / 2;
     tubeB.position.x = 0.18;
-    this.spyglass.add(tubeA, tubeB);
-    this.spyglass.position.set(0.28, 0.34, 0.22);
+    lens.rotation.y = Math.PI / 2;
+    lens.position.x = 0.27;
+    this.spyglass.add(tubeA, tubeB, lens);
+    this.spyglass.position.set(0.3, 0.52, 0.22);
     this.spyglass.rotation.y = -0.4;
     this.spyglass.visible = false;
     this.body.add(this.spyglass);
 
-    this.group.scale.setScalar(1.05);
+    this.group.scale.setScalar(1.08);
     const blob = new THREE.Mesh(
-      new THREE.CircleGeometry(0.42, 12),
+      new THREE.CircleGeometry(0.42, 16),
       new THREE.MeshBasicMaterial({ color: 0x1a2030, transparent: true, opacity: 0.28, depthWrite: false }),
     );
     blob.rotation.x = -Math.PI / 2;
@@ -156,22 +297,41 @@ export class Eva {
     this.group.add(blob);
   }
 
+  playPickup() {
+    this.pickupT = 0.48;
+  }
+
   update(dt: number, moving: boolean, sailing: boolean, spyglass: boolean) {
     this.bob += dt * (moving ? 10 : 2.4);
-    const bounce = Math.sin(this.bob) * (moving ? 0.06 : 0.018);
-    this.body.position.y = bounce;
-    this.body.rotation.z = Math.sin(this.bob * 0.5) * (moving ? 0.08 : 0.03);
-    this.leftWing.rotation.z = 0.4 + Math.sin(this.bob) * (moving ? 0.5 : 0.12);
-    this.rightWing.rotation.z = -0.4 - Math.sin(this.bob) * (moving ? 0.5 : 0.12);
-    this.leftLeg.rotation.x = moving ? Math.sin(this.bob) * 0.7 : 0.1;
-    this.rightLeg.rotation.x = moving ? Math.cos(this.bob) * 0.7 : 0.1;
+    const bounce = Math.sin(this.bob) * (moving ? 0.055 : 0.016);
+    this.body.position.y = 0.26 + bounce;
+
+    if (this.pickupT > 0) {
+      this.pickupT = Math.max(0, this.pickupT - dt);
+      const u = 1 - this.pickupT / 0.48;
+      const squash = Math.sin(u * Math.PI);
+      this.body.scale.set(1 + squash * 0.12, 1 - squash * 0.1, 1 + squash * 0.08);
+      this.body.rotation.z = Math.sin(u * Math.PI) * 0.18;
+      this.leftWing.rotation.z = 0.2 + squash * 1.15;
+      this.rightWing.rotation.z = -0.2 - squash * 0.35;
+      this.leftWing.rotation.x = -squash * 0.6;
+    } else {
+      this.body.scale.set(1, 1, 1);
+      this.body.rotation.z = Math.sin(this.bob * 0.5) * (moving ? 0.08 : 0.03);
+      this.leftWing.rotation.z = 0.4 + Math.sin(this.bob) * (moving ? 0.5 : 0.12);
+      this.rightWing.rotation.z = -0.4 - Math.sin(this.bob) * (moving ? 0.5 : 0.12);
+      this.leftWing.rotation.x = 0;
+    }
+
+    this.leftLeg.rotation.x = moving ? Math.sin(this.bob) * 0.7 : 0.08;
+    this.rightLeg.rotation.x = moving ? Math.cos(this.bob) * 0.7 : 0.08;
     this.holdingGlass = spyglass;
     this.spyglass.visible = spyglass || sailing;
     if (sailing) {
-      this.spyglass.position.set(0.22, 0.38, 0.28);
+      this.spyglass.position.set(0.22, 0.58, 0.28);
       this.spyglass.rotation.set(-0.2, -0.2, 0.4);
     } else if (spyglass) {
-      this.spyglass.position.set(0.05, 0.5, 0.32);
+      this.spyglass.position.set(0.04, 0.78, 0.34);
       this.spyglass.rotation.set(-0.15, 0, 0.9);
     }
     this.tiara.rotation.z = Math.sin(this.bob * 0.5) * 0.05;

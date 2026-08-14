@@ -49,12 +49,19 @@ export function getToonRamp(): THREE.DataTexture {
   return toonRamp;
 }
 
-export function toon(color: number, opts?: { emissive?: number; roughness?: number }): THREE.MeshToonMaterial {
+export function toon(
+  color: number,
+  opts?: { emissive?: number; roughness?: number; map?: THREE.Texture; transparent?: boolean; opacity?: number; side?: THREE.Side },
+): THREE.MeshToonMaterial {
   const mat = new THREE.MeshToonMaterial({
     color,
+    map: opts?.map,
     gradientMap: getToonRamp(),
     emissive: opts?.emissive ?? 0x000000,
     emissiveIntensity: opts?.emissive ? 0.45 : 0,
+    transparent: opts?.transparent ?? false,
+    opacity: opts?.opacity ?? 1,
+    side: opts?.side ?? THREE.FrontSide,
   });
   mat.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
