@@ -28,7 +28,7 @@ export class Eva {
     this.group.add(this.body);
 
     const torso = new THREE.Mesh(new THREE.SphereGeometry(0.42, 22, 18), toon(PALETTE.evaYellow));
-    torso.scale.set(1.05, 0.95, 0.98);
+    torso.scale.set(1.02, 1.0, 1.02);
     torso.castShadow = true;
     this.body.add(torso);
     this.body.add(outlineClone(torso, 0.07));
@@ -50,14 +50,14 @@ export class Eva {
     tuft.scale.set(0.7, 1.3, 0.5);
     this.body.add(tuft);
 
-    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.16, 10), toon(PALETTE.beak));
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.2, 10), toon(PALETTE.beak));
     beak.rotation.x = Math.PI / 2;
-    beak.position.set(0, 0.44, 0.36);
+    beak.position.set(0, 0.44, 0.38);
     this.body.add(beak);
 
     const blushMat = toon(PALETTE.blush);
-    const blushL = new THREE.Mesh(new THREE.CircleGeometry(0.07, 10), blushMat);
-    blushL.position.set(-0.2, 0.42, 0.3);
+    const blushL = new THREE.Mesh(new THREE.CircleGeometry(0.09, 10), blushMat);
+    blushL.position.set(-0.22, 0.42, 0.32);
     const blushR = blushL.clone();
     blushR.position.x *= -1;
     this.body.add(blushL, blushR);
@@ -65,15 +65,15 @@ export class Eva {
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x2a1a12 });
     const makeEye = (x: number) => {
       const g = new THREE.Group();
-      const lid = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.018, 6, 10, Math.PI), eyeMat);
+      const lid = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.022, 6, 12, Math.PI), eyeMat);
       lid.rotation.z = Math.PI;
-      lid.position.set(x, 0.52, 0.3);
-      lid.rotation.x = -0.25;
+      lid.position.set(x, 0.54, 0.32);
+      lid.rotation.x = -0.2;
       g.add(lid);
       for (let i = 0; i < 3; i++) {
-        const lash = new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.05, 3, 6), eyeMat);
-        lash.position.set(x - 0.04 + i * 0.04, 0.58, 0.3);
-        lash.rotation.z = -0.5 + i * 0.5;
+        const lash = new THREE.Mesh(new THREE.CapsuleGeometry(0.01, 0.07, 3, 6), eyeMat);
+        lash.position.set(x - 0.05 + i * 0.05, 0.62, 0.32);
+        lash.rotation.z = -0.55 + i * 0.55;
         g.add(lash);
       }
       return g;
@@ -100,15 +100,21 @@ export class Eva {
     });
     this.body.add(this.tiara);
 
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.38, 0.22, 16), toon(PALETTE.top));
-    top.position.set(0, 0.12, 0);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.18, 16), toon(PALETTE.top));
+    top.position.set(0, 0.14, 0);
     this.body.add(top);
 
-    const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.32, 16, 1, true), toon(PALETTE.skirt));
-    skirt.position.set(0, -0.18, 0);
+    const skirt = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.36, 0.5, 0.3, 16, 1, true),
+      toon(PALETTE.skirt),
+    );
+    skirt.position.set(0, -0.22, 0);
     skirt.castShadow = true;
     this.body.add(skirt);
-    this.body.add(outlineClone(skirt, 0.05));
+    const waist = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.03, 6, 16), toon(PALETTE.skirt));
+    waist.rotation.x = Math.PI / 2;
+    waist.position.y = -0.08;
+    this.body.add(waist);
 
     this.leftWing = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), toon(PALETTE.beak));
     this.leftWing.scale.set(0.55, 0.9, 1.2);
@@ -141,6 +147,13 @@ export class Eva {
     this.body.add(this.spyglass);
 
     this.group.scale.setScalar(1.05);
+    const blob = new THREE.Mesh(
+      new THREE.CircleGeometry(0.42, 12),
+      new THREE.MeshBasicMaterial({ color: 0x1a2030, transparent: true, opacity: 0.28, depthWrite: false }),
+    );
+    blob.rotation.x = -Math.PI / 2;
+    blob.position.y = 0.02;
+    this.group.add(blob);
   }
 
   update(dt: number, moving: boolean, sailing: boolean, spyglass: boolean) {

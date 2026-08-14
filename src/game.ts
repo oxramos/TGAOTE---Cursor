@@ -30,6 +30,7 @@ export class Game {
   camera: THREE.PerspectiveCamera;
   composer: EffectComposer;
   renderPass: RenderPass;
+  bloom: UnrealBloomPass;
   input: Input;
   sky = new Sky();
   ocean = new Ocean();
@@ -100,8 +101,8 @@ export class Game {
     this.renderPass = new RenderPass(this.world, this.camera);
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(this.renderPass);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.22, 0.6, 0.85);
-    this.composer.addPass(bloom);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.22, 0.6, 0.85);
+    this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
     this.input = new Input(canvas);
@@ -176,7 +177,9 @@ export class Game {
     this.audio.resume();
     $("title-screen").classList.add("hidden");
     $("hud").classList.remove("hidden");
-    this.toast(fromSave ? "Welcome back, little admiral." : "A new day begins on the high seas.");
+    if (!new URLSearchParams(location.search).get("shot")) {
+      this.toast(fromSave ? "Welcome back, little admiral." : "A new day begins on the high seas.");
+    }
   }
 
   setState(s: GameState) {
@@ -206,8 +209,8 @@ export class Game {
     if (this.state === "title") {
       this.sky.update(0.32, dt);
       this.ocean.update(this.elapsed, this.sky.sunDir);
-      this.camera.position.set(18, 10, 22);
-      this.camera.lookAt(0, 1, 0);
+      this.camera.position.set(38, 14, 46);
+      this.camera.lookAt(-5, 2.2, -3);
       return;
     }
 
@@ -249,7 +252,11 @@ export class Game {
       });
     }
 
-    if (this.state === "dialogue") return;
+    if (this.state === "dialogue") {
+      this.updateCamera(dt);
+      this.updateHud();
+      return;
+    }
 
     const mouse = this.input.mouseDelta();
     this.camYaw -= mouse.x * 0.005;
@@ -310,8 +317,10 @@ export class Game {
     const isl = nearestIsland(this.eva.group.position.x, this.eva.group.position.z);
     if (isl && !this.save.discovered.includes(isl.id)) {
       this.save.discovered.push(isl.id);
-      this.toast(isl.discovery);
-      this.audio.chime("rare");
+      if (!new URLSearchParams(location.search).get("shot")) {
+        this.toast(isl.discovery);
+        this.audio.chime("rare");
+      }
     }
   }
 
@@ -373,12 +382,13 @@ export class Game {
     this.fov = THREE.MathUtils.lerp(this.fov, targetFov, 1 - Math.pow(0.01, dt));
     this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();
-    const dist = this.currentInterior ? 6.5 : this.sailing ? this.camDist + 3 : this.camDist;
-    const pitch = this.currentInterior ? 0.55 : this.camPitch;
+    const dist = this.currentInterior ? THREE.MathUtils.clamp(this.camDist, 2.4, 4.4) : this.sailing ? this.camDist + 3 : this.camDist;
+    const pitch = this.currentInterior ? THREE.MathUtils.clamp(this.camPitch, 0.22, 0.55) : this.camPitch;
     const t = this.eva.group.position;
-    const look = new THREE.Vector3(t.x, t.y + (this.currentInterior ? 1.2 : 1.35), t.z);
+    const lookY = this.currentInterior ? 1.05 : 1.15;
+    const look = new THREE.Vector3(t.x, t.y + lookY, t.z);
     const ox = Math.sin(this.camYaw) * Math.cos(pitch) * dist;
-    const oy = Math.sin(pitch) * dist + 1.2;
+    const oy = Math.sin(pitch) * dist;
     const oz = Math.cos(this.camYaw) * Math.cos(pitch) * dist;
     const desired = new THREE.Vector3(look.x - ox, look.y + oy, look.z - oz);
     this.camera.position.lerp(desired, 1 - Math.pow(0.02, dt));
@@ -503,6 +513,9 @@ export class Game {
       rebuildDecor(room, this.save.decorations);
     }
     this.renderPass.scene = this.interiorScene;
+    this.camDist = 2.7;
+    this.camPitch = 0.26;
+    this.camYaw = Math.PI;
     this.setState("interior");
     this.audio.chime("ui");
   }
@@ -782,6 +795,7 @@ export class Game {
   private render() {
     const scene = this.currentInterior ? this.interiorScene : this.world;
     this.renderPass.scene = scene;
+    this.bloom.strength = this.currentInterior ? 0.06 : 0.22;
     this.composer.render();
     if (this.state === "inspect") this.inspect.render(this.elapsed);
   }
@@ -803,9 +817,30 @@ export class Game {
       this.camPitch = pitch;
       this.sailing = false;
     };
-    if (name === "home") put(4, 6, 0.9, 12, 0.32);
-    if (name === "eva") put(5, 7, 2.4, 4.2, 0.22);
-    if (name === "house") put(-4, -2, 0.5, 14, 0.28);
+    if (name === "home" || name === "house") {
+      const home = this.houses.find((h) => h.kind === "home")!;
+      const door = this.doorWorld(home);
+      const standX = door.x + Math.sin(home.yaw) * 3.4;
+      const standZ = door.z + Math.cos(home.yaw) * 3.4;
+      put(standX, standZ, home.yaw + Math.PI, name === "house" ? 13 : 11, 0.3);
+    }
+    if (name === "eva") {
+      const home = this.houses.find((h) => h.kind === "home")!;
+      const door = this.doorWorld(home);
+      const fx = Math.sin(home.yaw);
+      const fz = Math.cos(home.yaw);
+      put(door.x + fx * 4.2, door.z + fz * 4.2, home.yaw + Math.PI, 3.6, 0.16);
+      this.eva.group.rotation.y = home.yaw;
+    }
+    if (name === "npc" || name === "talk") {
+      const mesh = this.npcs.get("mallow")!;
+      put(mesh.position.x + 2.2, mesh.position.z + 1.4, 4.1, 6.5, 0.22);
+      this.eva.group.lookAt(mesh.position);
+      if (name === "talk") this.openDialogue("mallow");
+    }
+    if (name === "inspect") {
+      this.openInspect("heart_conch");
+    }
     if (name === "sea") {
       this.sailing = true;
       this.boat.group.position.set(24, 0.2, 18);
@@ -815,7 +850,6 @@ export class Game {
       this.camPitch = 0.3;
     }
     if (name === "collect") put(8, 124, 0.2, 8, 0.4);
-    if (name === "npc") put(-88, 58, 1.2, 8, 0.3);
     if (name === "stone") put(94, 46, -0.4, 16, 0.28);
     if (name === "palm") put(82, -74, 0.7, 13, 0.3);
     if (name === "harbor") put(-46, -90, 3.0, 12, 0.32);
@@ -837,14 +871,13 @@ export class Game {
       this.save.items.starstone = 1;
       this.save.items.heart_conch = 1;
       fillShelf(this.currentInterior!, this.save.displayed);
-      if (name === "shelf") {
-        this.eva.group.position.set(0, 0, -1.6);
-        this.camYaw = Math.PI;
-        this.camPitch = 0.15;
-        this.camDist = 5;
-      }
+      this.eva.group.position.set(0, 0, -0.3);
+      this.camYaw = Math.PI;
+      this.camPitch = 0.22;
+      this.camDist = 2.5;
     }
     this.camera.position.set(this.eva.group.position.x + 8, 8, this.eva.group.position.z + 8);
+    this.updateCamera(1);
   }
 }
 

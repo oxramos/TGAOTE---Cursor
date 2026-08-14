@@ -78,7 +78,7 @@ body,
   inset: 0;
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.9) 1.5px, transparent 2px);
   background-size: 90px 80px;
-  opacity: 0.7;
+  opacity: 0.18;
 }
 
 .title-boat-icon {

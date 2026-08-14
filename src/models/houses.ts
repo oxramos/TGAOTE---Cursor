@@ -41,12 +41,12 @@ function homeCottage(): THREE.Group {
   const roof = gableRoof(4.8, 3.4, 1.6, PALETTE.roof);
   roof.position.y = 3.55;
   g.add(roof);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.3, 0.08), toon(PALETTE.roof));
-  door.position.set(0, 0.7, 1.84);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.45, 0.1), toon(PALETTE.roof));
+  door.position.set(0, 0.78, 1.86);
   g.add(door);
-  const porch = gableRoof(1.6, 1.1, 0.7, PALETTE.roof);
-  porch.position.set(0, 1.45, 2.1);
-  g.add(porch);
+  const awning = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.7), toon(PALETTE.roof));
+  awning.position.set(0, 1.62, 2.05);
+  g.add(awning);
   windowPane(g, -1.3, 1.35, 1.84);
   windowPane(g, 1.3, 1.35, 1.84);
   windowPane(g, -0.7, 2.9, 1.54);

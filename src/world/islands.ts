@@ -13,10 +13,6 @@ export function islandHeight(isl: IslandDef, x: number, z: number): number {
   const sharp = isl.biome === "stone" || isl.biome === "rocks" ? 0.78 : 0.62;
   const edge = 1 - THREE.MathUtils.smoothstep(isl.radius * sharp, isl.radius, d);
   let h = isl.height * Math.pow(edge, isl.biome === "stone" ? 0.7 : 1.15) * (0.55 + 0.45 * n);
-  if (isl.biome === "home") {
-    const path = Math.abs(dz) < 1.4 && dx > -2 && dx < 8 ? 0.35 : 1;
-    h *= path === 0.35 ? 0.55 : 1;
-  }
   if (d > isl.radius * 0.78) h = Math.min(h, 0.22 + (1 - d / isl.radius) * 0.5);
   return Math.max(h, d < isl.radius * 0.98 ? 0.08 : 0);
 }
@@ -63,6 +59,7 @@ export function buildArchipelago(scene: THREE.Scene): { houses: HouseAnchor[]; c
 
   for (const isl of ISLANDS) {
     scene.add(makeIslandMesh(isl));
+    scene.add(makeIslandRim(isl));
     scatter(scene, isl);
     landmark(scene, isl);
 
@@ -134,7 +131,7 @@ function makeIslandMesh(isl: IslandDef): THREE.Mesh {
     const n1 = radial;
     if (r === 0) {
       for (let i = 0; i < radial; i++) {
-        indices.push(0, a1 + i, a1 + ((i + 1) % radial));
+        indices.push(0, a1 + ((i + 1) % radial), a1 + i);
       }
     } else {
       for (let i = 0; i < radial; i++) {
@@ -142,7 +139,7 @@ function makeIslandMesh(isl: IslandDef): THREE.Mesh {
         const i1 = a0 + ((i + 1) % n0);
         const j0 = a1 + i;
         const j1 = a1 + ((i + 1) % n1);
-        indices.push(i0, j0, i1, i1, j0, j1);
+        indices.push(i0, i1, j0, i1, j1, j0);
       }
     }
   }
@@ -156,6 +153,35 @@ function makeIslandMesh(isl: IslandDef): THREE.Mesh {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.castShadow = true;
+  return mesh;
+}
+
+function makeIslandRim(isl: IslandDef): THREE.Mesh {
+  const radial = 48;
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  const sand = new THREE.Color(PALETTE.sand);
+  const wet = new THREE.Color(PALETTE.sandWet);
+  for (let a = 0; a <= radial; a++) {
+    const ang = (a / radial) * Math.PI * 2;
+    const x = isl.x + Math.cos(ang) * isl.radius;
+    const z = isl.z + Math.sin(ang) * isl.radius;
+    const y = Math.max(islandHeight(isl, x, z), 0.05);
+    positions.push(x, y, z, x, -1.35, z);
+    colors.push(sand.r, sand.g, sand.b, wet.r, wet.g, wet.b);
+  }
+      for (let a = 0; a < radial; a++) {
+        const i = a * 2;
+        indices.push(i, i + 2, i + 1, i + 2, i + 3, i + 1);
+      }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  mesh.receiveShadow = true;
   return mesh;
 }
 

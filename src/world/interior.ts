@@ -46,6 +46,7 @@ export function buildInterior(kind: HouseKind): InteriorRoom {
   group.add(ceiling);
 
   const wallMat = toon(pal.wall);
+  wallMat.side = THREE.DoubleSide;
   const back = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), wallMat);
   back.position.set(0, h / 2, -d / 2);
   const left = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, d), wallMat);
@@ -63,12 +64,14 @@ export function buildInterior(kind: HouseKind): InteriorRoom {
   window2.position.x = 2.4;
   group.add(window2);
 
-  const lamp = new THREE.PointLight(0xffe0b0, 1.4, 16);
-  lamp.position.set(0, 3.2, 0);
-  lamp.castShadow = true;
-  group.add(lamp);
-  const hemi = new THREE.HemisphereLight(0xfff1d6, 0x8a6a40, 0.6);
-  group.add(hemi);
+    const lamp = new THREE.PointLight(0xffe0b0, 0.55, 16);
+    lamp.position.set(0, 3.2, 0);
+    group.add(lamp);
+    const hemi = new THREE.HemisphereLight(0xfff1d6, 0x8a6a40, 1.1);
+    group.add(hemi);
+    const fill = new THREE.DirectionalLight(0xfff1d6, 0.7);
+    fill.position.set(2, 5, 3);
+    group.add(fill);
 
   const interacts: InteriorRoom["interacts"] = [];
   const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, 0.08), toon(pal.trim));
@@ -82,6 +85,12 @@ export function buildInterior(kind: HouseKind): InteriorRoom {
   const npcAnchor = new THREE.Vector3(2.6, 0, -1.2);
 
   if (kind === "home") {
+    const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.04, 24), toon(0xe23a3a));
+    rug.position.set(0, 0.08, 0.2);
+    group.add(rug);
+    const rugInner = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.05, 24), toon(0xf2c14e));
+    rugInner.position.set(0, 0.09, 0.2);
+    group.add(rugInner);
     const bed = new THREE.Group();
     const mattress = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 2.4), toon(0xfff6ea));
     mattress.position.set(3.2, 0.35, -1.4);
@@ -130,7 +139,7 @@ export function buildInterior(kind: HouseKind): InteriorRoom {
   return {
     id: kind,
     group,
-    spawn: new THREE.Vector3(0, 0, 2.4),
+    spawn: new THREE.Vector3(0, 0, 0.15),
     interacts,
     floor: { minX: -4.4, maxX: 4.4, minZ: -3.4, maxZ: 3.4 },
     shelfAnchors,
