@@ -179,6 +179,10 @@ export class Game {
         this.renderInventory();
       });
     });
+    $("hud-wind").onclick = (e) => {
+      e.stopPropagation();
+      this.callWind();
+    };
   }
 
   private refreshContinue() {
@@ -313,7 +317,7 @@ export class Game {
     const inside = !!this.currentInterior;
     const lookMul = inside ? 1.55 : 1;
     this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005) * lookMul;
-    this.camPitch = THREE.MathUtils.clamp(this.camPitch - mouse.y * (touchLook ? 0.0062 : 0.004) * lookMul, 0.1, 1.15);
+    this.camPitch = THREE.MathUtils.clamp(this.camPitch + mouse.y * (touchLook ? 0.0062 : 0.004) * lookMul, 0.1, 1.15);
     const minZoom = inside ? 2.1 : 5;
     const maxZoom = inside ? 5.4 : 22;
     this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, minZoom, maxZoom);
@@ -345,40 +349,33 @@ export class Game {
   private updateWorld(dt: number) {
     const night = this.isNight();
     this.npcs.forEach((mesh) => (mesh.visible = !night));
-    this.updateWind();
+    this.updateWind(dt);
 
     if (this.sailing) {
+      if (this.input.consume("KeyC")) this.callWind();
       const axis = this.input.moveAxis();
-      // Stick / W = haul sail (go). S = douse. A/D = helm.
-      if (axis.z < -0.08) this.sailAmount = Math.min(1, this.sailAmount + (-axis.z) * dt * 0.95);
-      else if (axis.z > 0.08) this.sailAmount = Math.max(0, this.sailAmount - axis.z * dt * 1.15);
+      this.boatYaw -= axis.x * dt * 1.7;
+      const accel = axis.z < 0 ? 7.5 : axis.z > 0 ? -4 : -1.8;
+      this.boatSpeed = THREE.MathUtils.clamp(this.boatSpeed + accel * dt, -2, 11);
+      this.sailAmount = THREE.MathUtils.damp(this.sailAmount, THREE.MathUtils.clamp(Math.abs(this.boatSpeed) / 9, 0.22, 1), 4, dt);
       const polar = this.sailPolar();
-      const helm = 1.05 + (1 - this.sailAmount) * 0.55;
-      this.boatYaw -= axis.x * dt * helm;
-      const drive = this.sailAmount * this.windSpeed * polar * 1.15;
-      const target = this.sailAmount < 0.12 ? 0.6 : 1.05 + drive;
-      this.boatSpeed = THREE.MathUtils.damp(this.boatSpeed, target, 1.6, dt);
       const fx = Math.sin(this.boatYaw);
       const fz = Math.cos(this.boatYaw);
       const nx = this.boat.group.position.x + fx * this.boatSpeed * dt;
       const nz = this.boat.group.position.z + fz * this.boatSpeed * dt;
-      const wind = this.windVec();
-      const slip = (1 - polar) * this.sailAmount * 0.9 * dt;
-      const sx = nx + wind.x * slip;
-      const sz = nz + wind.z * slip;
-      const bowX = sx + fx * 1.55;
-      const bowZ = sz + fz * 1.55;
-      if (isLand(sx, sz) || isLand(bowX, bowZ) || isLand(sx - fx * 1.1, sz - fz * 1.1)) {
+      const bowX = nx + fx * 1.55;
+      const bowZ = nz + fz * 1.55;
+      if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.1, nz - fz * 1.1)) {
         this.boatSpeed *= 0.35;
         const safe = pushToWater(this.boat.group.position.x, this.boat.group.position.z);
         this.boat.group.position.x = safe.x;
         this.boat.group.position.z = safe.z;
       } else {
-        this.boat.group.position.x = sx;
-        this.boat.group.position.z = sz;
+        this.boat.group.position.x = nx;
+        this.boat.group.position.z = nz;
       }
       this.floatBoat();
-      const heel = Math.sin(this.angDelta(this.windYaw, this.boatYaw)) * this.sailAmount * polar * 0.14;
+      const heel = Math.sin(this.angDelta(this.windYaw, this.boatYaw)) * this.sailAmount * 0.08;
       this.boat.group.rotation.y = this.boatYaw;
       this.boat.group.rotation.z = Math.sin(this.elapsed * 1.4) * 0.04 + heel;
       this.boat.group.rotation.x = Math.cos(this.elapsed * 1.1) * 0.035;
@@ -578,10 +575,16 @@ export class Game {
     p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
   }
 
-  private updateWind() {
-    const t = this.elapsed;
-    this.windYaw = 0.55 + Math.sin(t * 0.027) * 0.95 + Math.sin(t * 0.011 + 1.2) * 1.25;
-    this.windSpeed = 6.2 + Math.sin(t * 0.041) * 1.7 + Math.sin(t * 0.013) * 0.7;
+  private updateWind(dt: number) {
+    this.windYaw += Math.sin(this.elapsed * 0.031) * 0.14 * dt;
+    this.windSpeed = 6.2 + Math.sin(this.elapsed * 0.041) * 1.2;
+  }
+
+  private callWind() {
+    if (!this.sailing) return;
+    this.windYaw = this.boatYaw;
+    this.audio.chime("ui");
+    this.toast("The wind swings to your bow.");
   }
 
   private windVec() {
@@ -686,7 +689,7 @@ export class Game {
       consider("E — Board the red boat", () => {
         this.sailing = true;
         this.sailAmount = 0.55;
-        this.boatSpeed = 2.2;
+        this.boatSpeed = 0;
         this.camYaw = this.boatYaw;
         this.camPitch = 0.3;
         this.camDist = Math.max(this.camDist, 13);
@@ -694,7 +697,7 @@ export class Game {
         this.audio.chime("ui");
         if (!this.sailedHint) {
           this.sailedHint = true;
-          this.toast("Haul sail with W to catch the wind. Steer with A and D.");
+          this.toast("W and S to go. Tap Compass to call the wind to your bow.");
         }
       });
     }
@@ -1188,12 +1191,12 @@ export class Game {
     const isl = this.currentInterior
       ? this.houseLabel(this.currentInterior.id)
       : (nearestIsland(this.eva.group.position.x, this.eva.group.position.z)?.name ?? "Open sea");
-    $("hud-place").textContent = this.sailing ? `${isl} · ${this.sailName()}` : isl;
+    $("hud-place").textContent = this.sailing ? `${isl} · sailing` : isl;
     $("hud-treats").textContent = `Treats ${this.save.treats}`;
     const wind = $("hud-wind");
     if (wind) {
       wind.classList.toggle("hidden", !this.sailing);
-      if (this.sailing) wind.textContent = `Wind ${this.windArrow()} ${this.windLabel()}`;
+      if (this.sailing) wind.textContent = `Compass ${this.windArrow()} · tap`;
     }
     $("touch-decor").classList.toggle("hidden", this.currentInterior?.id !== "home");
     if (this.bannerT > 0) {
@@ -1229,9 +1232,6 @@ export class Game {
   }
 
   private sailName() {
-    if (this.sailAmount < 0.2) return "reefed";
-    if (this.sailPolar() < 0.2) return "luffing";
-    if (this.sailAmount > 0.8) return "full sail";
     return "sailing";
   }
 

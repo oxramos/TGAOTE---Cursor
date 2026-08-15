@@ -340,6 +340,8 @@ html:not(.touch-on) .title-hint.touch {
 
 .hud-chip.wind {
   background: #e8f4ff;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .hud-prompt {
