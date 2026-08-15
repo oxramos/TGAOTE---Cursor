@@ -30,6 +30,6 @@ export function freshSave(): SaveData {
     tradesDone: [],
     friendship: { mallow: 0, pebble: 0, coral: 0, brine: 0 },
     eva: { x: 8, z: 12, sailing: false },
-    boat: { x: 48, z: 16, yaw: -0.6 },
+    boat: { x: 72, z: 26, yaw: -0.6 },
   };
 }

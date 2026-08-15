@@ -16,22 +16,22 @@ export type Pickup = {
 };
 
 const FIXED: { id: string; item: string; x: number; z: number }[] = [
-  { id: "leg-heart", item: "heart_conch", x: 8, z: 128 },
-  { id: "leg-prism", item: "prismatic_spiral", x: -128, z: -18 },
-  { id: "leg-opal", item: "dawn_opal", x: 108, z: 40 },
-  { id: "leg-tear", item: "wind_tear", x: 50, z: 90 },
-  { id: "rare-moon", item: "moon_nautilus", x: -55, z: -100 },
-  { id: "rare-star", item: "starstone", x: 96, z: 54 },
-  { id: "rare-abalone", item: "rainbow_abalone", x: 92, z: -70 },
-  { id: "rare-geode", item: "ember_geode", x: 112, z: 52 },
-  { id: "rare-sand", item: "star_sand_dollar", x: 80, z: -85 },
-  { id: "rare-tide", item: "tide_crystal", x: -130, z: -14 },
+  { id: "leg-heart", item: "heart_conch", x: 16, z: 166 },
+  { id: "leg-prism", item: "prismatic_spiral", x: -168, z: -28 },
+  { id: "leg-opal", item: "dawn_opal", x: 148, z: 58 },
+  { id: "leg-tear", item: "wind_tear", x: 58, z: 108 },
+  { id: "rare-moon", item: "moon_nautilus", x: -62, z: -118 },
+  { id: "rare-star", item: "starstone", x: 118, z: 62 },
+  { id: "rare-abalone", item: "rainbow_abalone", x: 100, z: -92 },
+  { id: "rare-geode", item: "ember_geode", x: 145, z: 78 },
+  { id: "rare-sand", item: "star_sand_dollar", x: 108, z: -118 },
+  { id: "rare-tide", item: "tide_crystal", x: -160, z: -22 },
   { id: "unc-sunset", item: "sunset_scallop", x: 14, z: 6 },
-  { id: "unc-pearl", item: "pearl_mussel", x: -42, z: -90 },
-  { id: "unc-candy", item: "candy_conch", x: -88, z: 62 },
-  { id: "unc-turban", item: "spiral_turban", x: 86, z: -72 },
+  { id: "unc-pearl", item: "pearl_mussel", x: -60, z: -118 },
+  { id: "unc-candy", item: "candy_conch", x: -110, z: 70 },
+  { id: "unc-turban", item: "spiral_turban", x: 108, z: -96 },
   { id: "unc-quartz", item: "rose_quartz", x: 4, z: -6 },
-  { id: "unc-amber", item: "amber_droplet", x: -96, z: 50 },
+  { id: "unc-amber", item: "amber_droplet", x: -118, z: 68 },
 ];
 
 const COMMONS = [

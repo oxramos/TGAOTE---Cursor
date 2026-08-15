@@ -85,7 +85,7 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.camera = new THREE.PerspectiveCamera(this.fov, innerWidth / innerHeight, 0.1, 500);
-    this.world.fog = new THREE.FogExp2(0x8ec8e8, 0.0056);
+    this.world.fog = new THREE.FogExp2(0x8ec8e8, 0.0042);
     this.world.add(this.sky.group);
     this.world.add(this.ocean.mesh);
     this.world.add(this.eva.group);
@@ -368,7 +368,7 @@ export class Game {
       if (h < 0.08) return;
       const step = h - this.eva.group.position.y;
       const dist = Math.hypot(mx, mz) || 0.0001;
-      if (step > dist * 0.85) return;
+      if (step > dist * 1.05) return;
       this.eva.group.position.set(nx, h, nz);
     } else if (this.currentInterior) {
       const f = this.currentInterior.floor;
@@ -504,7 +504,7 @@ export class Game {
   }
 
   private doorWorld(h: HouseAnchor) {
-    const depth = h.kind === "home" ? 2.9 : h.kind === "coral" ? 1.7 : h.kind === "mallow" ? 2.2 : 2.0;
+    const depth = h.kind === "home" ? 3.45 : h.kind === "coral" ? 1.85 : h.kind === "mallow" ? 2.35 : 2.15;
     return new THREE.Vector3(Math.sin(h.yaw) * depth, 0, Math.cos(h.yaw) * depth).add(h.position);
   }
 
@@ -926,16 +926,16 @@ export class Game {
     }
     if (name === "sea") {
       this.sailing = true;
-      this.boat.group.position.set(52, 0.2, 22);
+      this.boat.group.position.set(72, 0.2, 30);
       this.boatYaw = 0.8;
       this.camYaw = 0.8;
-      this.camDist = 14;
-      this.camPitch = 0.3;
+      this.camDist = 16;
+      this.camPitch = 0.28;
     }
-    if (name === "collect") put(8, 124, 0.2, 8, 0.4);
-    if (name === "stone") put(94, 46, -0.4, 16, 0.28);
-    if (name === "palm") put(82, -74, 0.7, 13, 0.3);
-    if (name === "harbor") put(-46, -90, 3.0, 12, 0.32);
+    if (name === "collect") put(14, 166, 0.2, 8, 0.4);
+    if (name === "stone") put(124, 64, -0.4, 18, 0.28);
+    if (name === "palm") put(108, -96, 0.7, 14, 0.3);
+    if (name === "harbor") put(-64, -118, 3.0, 13, 0.32);
     if (name === "sunset") {
       put(10, 12, 1.1, 16, 0.25);
       this.save.time = 0.74;
