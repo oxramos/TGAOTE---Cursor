@@ -64,8 +64,9 @@ body {
 }
 
 #title-screen {
-  background: linear-gradient(90deg, rgba(143, 208, 248, 0.18) 0%, rgba(255, 210, 184, 0.22) 100%);
+  background: linear-gradient(180deg, rgba(255, 236, 214, 0.16) 0%, rgba(143, 208, 248, 0.06) 38%, transparent 62%);
   pointer-events: none;
+  justify-content: flex-end;
 }
 
 #title-screen .title-panel,
@@ -75,11 +76,16 @@ body {
 }
 
 .title-sky {
-  flex: 1;
-  position: relative;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: min(48vh, 440px);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: calc(12px + env(safe-area-inset-top));
+  pointer-events: none;
 }
 
 .title-stars span,
@@ -97,7 +103,7 @@ body {
 
 .title-boat-icon {
   position: absolute;
-  top: 8%;
+  top: 10%;
   left: 7%;
   font-size: 28px;
   filter: drop-shadow(0 4px 0 rgba(255, 255, 255, 0.6));
@@ -106,10 +112,11 @@ body {
 .title-cloud {
   background: #fff;
   border-radius: 80px;
-  padding: 38px 72px 28px;
+  padding: 28px 58px 22px;
   text-align: center;
   box-shadow: 0 18px 0 rgba(255, 255, 255, 0.35), var(--shadow);
   position: relative;
+  pointer-events: auto;
 }
 
 .title-cloud::before,
@@ -190,20 +197,28 @@ body {
 }
 
 .title-waves {
-  height: 70px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44%;
+  pointer-events: none;
   background:
-    radial-gradient(120px 40px at 10% 0, #f6b48a 40%, transparent 42%),
-    radial-gradient(140px 46px at 40% 10%, #c9b6f2 40%, transparent 42%),
-    radial-gradient(160px 50px at 70% 0, #7db7ea 40%, transparent 42%),
-    linear-gradient(#3b8fd0, #2f7cc0);
+    radial-gradient(140px 52px at 12% 22%, rgba(246, 180, 138, 0.5) 40%, transparent 42%),
+    radial-gradient(160px 56px at 44% 28%, rgba(201, 182, 242, 0.4) 40%, transparent 42%),
+    radial-gradient(180px 60px at 78% 24%, rgba(125, 183, 234, 0.45) 40%, transparent 42%),
+    linear-gradient(180deg, transparent 0%, rgba(47, 124, 192, 0) 16%, rgba(47, 124, 192, 0.32) 52%, rgba(31, 96, 160, 0.78) 100%);
 }
 
 .title-panel {
-  background: #2f7cc0;
-  padding: 28px 24px 36px;
+  position: relative;
+  z-index: 2;
+  background: transparent;
+  padding: 8px 24px calc(28px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
 }
 
 .title-panel p {
@@ -223,6 +238,7 @@ body {
   background-origin: border-box;
   background-clip: padding-box, border-box;
   text-align: center;
+  box-shadow: var(--shadow);
 }
 
 .title-actions {
@@ -243,6 +259,23 @@ body {
 html.touch-on .title-hint.desktop,
 html:not(.touch-on) .title-hint.touch {
   display: none !important;
+}
+
+@media (max-height: 740px) {
+  .title-cloud {
+    padding: 18px 36px 14px;
+  }
+  .title-kicker {
+    font-size: 22px;
+  }
+  .title-logo {
+    font-size: clamp(40px, 9vw, 68px);
+  }
+  .title-panel p {
+    font-size: 16px;
+    padding: 12px 18px;
+    margin-bottom: 12px;
+  }
 }
 
 .btn {

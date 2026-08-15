@@ -12,11 +12,11 @@ export type HouseAnchor = {
 };
 
 const HOUSE_LAYOUT: Record<string, { kind: HouseKind; ox: number; oz: number; yaw: number; pad: number }> = {
-  home: { kind: "home", ox: -8, oz: -10, yaw: 0.42, pad: 6.2 },
-  meadow: { kind: "mallow", ox: -7, oz: -6, yaw: 0.2, pad: 5.6 },
-  stone: { kind: "pebble", ox: 5, oz: -7, yaw: -0.28, pad: 5.8 },
-  palm: { kind: "coral", ox: 8, oz: 6, yaw: 0.55, pad: 5.4 },
-  harbor: { kind: "brine", ox: -5, oz: 11, yaw: 3.15, pad: 5.8 },
+  home: { kind: "home", ox: -8, oz: -10, yaw: 0.42, pad: 7.6 },
+  meadow: { kind: "mallow", ox: -7, oz: -6, yaw: 0.2, pad: 6.4 },
+  stone: { kind: "pebble", ox: 5, oz: -7, yaw: -0.28, pad: 6.6 },
+  palm: { kind: "coral", ox: 8, oz: 6, yaw: 0.55, pad: 6.2 },
+  harbor: { kind: "brine", ox: -5, oz: 11, yaw: 3.15, pad: 6.6 },
 };
 
 const LAND = 0.16;
@@ -114,13 +114,20 @@ export function islandHeight(isl: IslandDef, x: number, z: number): number {
   let h = rawHeight(isl, x, z);
   const layout = HOUSE_LAYOUT[isl.id];
   if (layout && h > 0) {
-    const px = isl.x + layout.ox;
-    const pz = isl.z + layout.oz;
-    const pd = Math.hypot(x - px, z - pz);
-    if (pd < layout.pad) {
-      const target = rawHeight(isl, px, pz);
-      const w = 1 - THREE.MathUtils.smootherstep(layout.pad * 0.2, layout.pad, pd);
-      h = THREE.MathUtils.lerp(h, target, w * 0.72);
+    const hx = isl.x + layout.ox;
+    const hz = isl.z + layout.oz;
+    const yaw = layout.yaw;
+    const dx = x - hx;
+    const dz = z - hz;
+    const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+    const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+    const houseH = rawHeight(isl, hx, hz);
+    const body = Math.hypot(lx / (layout.pad * 0.72), lz / (layout.pad * 0.62));
+    const path = Math.max(Math.abs(lx) / 2.5, Math.abs(lz - 4.6) / 4.8);
+    const u = Math.min(body, path);
+    if (u < 1) {
+      const w = 1 - THREE.MathUtils.smootherstep(0.12, 1, u);
+      h = THREE.MathUtils.lerp(h, houseH, w * 0.94);
     }
   }
   return h;

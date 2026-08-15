@@ -145,7 +145,7 @@ export function buildInterior(kind: HouseKind): InteriorRoom {
   return {
     id: kind,
     group,
-    spawn: new THREE.Vector3(0, 0, 0.15),
+    spawn: new THREE.Vector3(0, 0, 0.2),
     interacts,
     floor: { minX: -4.4, maxX: 4.4, minZ: -3.4, maxZ: 3.4 },
     shelfAnchors,
@@ -364,7 +364,7 @@ function homeInterior(): InteriorRoom {
   return {
     id: "home",
     group,
-    spawn: new THREE.Vector3(0, 0, 2.15),
+    spawn: new THREE.Vector3(0, 0, 0.7),
     interacts,
     floor: { minX: -4.15, maxX: 4.15, minZ: -3.2, maxZ: 3.15 },
     shelfAnchors,

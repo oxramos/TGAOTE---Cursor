@@ -317,11 +317,11 @@ export class Eva {
     const flutter = floating || (airborne && !sailing);
     this.bob += dt * (flutter ? 16 : run ? 9.2 : sailing ? 3.2 : 2.2);
     const step = this.bob;
-    const bounce = run ? Math.abs(Math.sin(step)) * 0.07 : flutter ? Math.sin(step) * 0.04 : Math.sin(step) * 0.016;
-    this.body.position.y = 0.26 + bounce + (airborne && !floating ? 0.04 : 0);
+    const bounce = run ? Math.abs(Math.sin(step)) * 0.07 : flutter ? 0.06 + Math.sin(step) * 0.1 : Math.sin(step) * 0.016;
+    this.body.position.y = 0.26 + bounce + (airborne && !floating ? 0.08 : 0);
 
     const bank = THREE.MathUtils.clamp(turnRate * 0.22, -0.42, 0.42);
-    const lean = run ? 0.12 : flutter ? -0.08 : 0;
+    const lean = run ? 0.12 : flutter ? -0.18 : 0;
 
     if (this.pickupT > 0) {
       this.pickupT = Math.max(0, this.pickupT - dt);
@@ -338,13 +338,13 @@ export class Eva {
       this.body.rotation.x = THREE.MathUtils.damp(this.body.rotation.x, lean, 6, dt);
 
       if (flutter) {
-        const flap = 0.85 + Math.sin(step) * 0.55;
+        const flap = 1.15 + Math.sin(step) * 0.72;
         this.leftWing.rotation.z = flap;
         this.rightWing.rotation.z = -flap;
-        this.leftWing.rotation.x = -0.35 + Math.sin(step * 1.3) * 0.25;
-        this.rightWing.rotation.x = -0.35 - Math.sin(step * 1.3) * 0.25;
-        this.leftWing.rotation.y = 0.35 + bank * 0.4;
-        this.rightWing.rotation.y = -0.35 + bank * 0.4;
+        this.leftWing.rotation.x = -0.55 + Math.sin(step * 1.4) * 0.35;
+        this.rightWing.rotation.x = -0.55 - Math.sin(step * 1.4) * 0.35;
+        this.leftWing.rotation.y = 0.45 + bank * 0.4;
+        this.rightWing.rotation.y = -0.45 + bank * 0.4;
       } else if (run) {
         this.leftWing.rotation.z = 0.55 + Math.sin(step) * 0.42;
         this.rightWing.rotation.z = -0.55 - Math.sin(step + 0.4) * 0.42;
@@ -363,12 +363,12 @@ export class Eva {
     }
 
     if (flutter) {
-      this.leftLeg.rotation.x = 0.55;
-      this.rightLeg.rotation.x = 0.62;
-      this.leftLeg.position.y = 0.04;
-      this.rightLeg.position.y = 0.05;
-      this.leftLeg.position.z = -0.04;
-      this.rightLeg.position.z = -0.03;
+      this.leftLeg.rotation.x = 0.72;
+      this.rightLeg.rotation.x = 0.8;
+      this.leftLeg.position.y = 0.07;
+      this.rightLeg.position.y = 0.08;
+      this.leftLeg.position.z = -0.06;
+      this.rightLeg.position.z = -0.05;
     } else if (run) {
       const a = Math.sin(step);
       const b = Math.sin(step + Math.PI);

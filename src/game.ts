@@ -52,6 +52,7 @@ export class Game {
   camYaw = 0.7;
   camPitch = 0.38;
   camDist = 11;
+  private worldCam = { yaw: 0.7, pitch: 0.38, dist: 11 };
   fov = 48;
   sailing = false;
   boatSpeed = 0;
@@ -242,8 +243,11 @@ export class Game {
     if (this.state === "title") {
       this.sky.update(0.32, dt);
       this.ocean.update(this.elapsed, this.sky.sunDir);
-      this.camera.position.set(38, 14, 46);
-      this.camera.lookAt(-5, 2.2, -3);
+      const bob = Math.sin(this.elapsed * 0.22) * 1.4;
+      this.camera.position.set(26 + bob, 11.5, 34);
+      this.camera.lookAt(-6, 2.4, -8);
+      this.camera.fov = 46;
+      this.camera.updateProjectionMatrix();
       return;
     }
 
@@ -304,7 +308,9 @@ export class Game {
     const touchLook = document.documentElement.classList.contains("touch-on");
     this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005);
     this.camPitch = THREE.MathUtils.clamp(this.camPitch - mouse.y * (touchLook ? 0.0062 : 0.004), 0.12, 1.1);
-    this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, 5, 22);
+    const minZoom = this.currentInterior ? 2.6 : 5;
+    const maxZoom = this.currentInterior ? 4.6 : 22;
+    this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, minZoom, maxZoom);
 
     this.spyglass = this.input.pressed("KeyF") && !this.currentInterior;
     $("spyglass-rim").classList.toggle("hidden", !this.spyglass);
@@ -390,30 +396,29 @@ export class Game {
       this.turnRate = THREE.MathUtils.damp(this.turnRate, 0, 8, dt);
       return;
     }
-    const speed = this.floating ? 5.4 : this.grounded ? 4.8 : 4.1;
+    const speed = this.floating ? 6.6 : this.grounded ? 4.8 : 5.2;
     this.moveFwd.set(Math.sin(this.camYaw), 0, Math.cos(this.camYaw));
     this.moveRight.crossVectors(this.moveFwd, this.moveUp).normalize();
     const mx = (this.moveRight.x * axis.x + this.moveFwd.x * -axis.z) * speed * dt;
     const mz = (this.moveRight.z * axis.x + this.moveFwd.z * -axis.z) * speed * dt;
-    const nx = this.eva.group.position.x + mx;
-    const nz = this.eva.group.position.z + mz;
+    const ox = this.eva.group.position.x;
+    const oz = this.eva.group.position.z;
+    const nx = ox + mx;
+    const nz = oz + mz;
     if (onWorld) {
-      if (this.blocked(nx, nz)) return;
-      const h = heightAt(nx, nz);
-      if (h < 0.08 && this.grounded) return;
-      if (this.grounded) {
-        const step = h - this.eva.group.position.y;
-        const dist = Math.hypot(mx, mz) || 0.0001;
-        if (step > dist * 1.05) return;
-      } else if (h < 0.08) return;
-      this.eva.group.position.x = nx;
-      this.eva.group.position.z = nz;
+      this.tryStep(nx, nz);
     } else if (this.currentInterior) {
       const f = this.currentInterior.floor;
       this.eva.group.position.x = THREE.MathUtils.clamp(nx, f.minX, f.maxX);
       this.eva.group.position.z = THREE.MathUtils.clamp(nz, f.minZ, f.maxZ);
     }
-    const yaw = Math.atan2(mx, mz);
+    const ax = this.eva.group.position.x - ox;
+    const az = this.eva.group.position.z - oz;
+    if (Math.hypot(ax, az) < 1e-5) {
+      this.turnRate = THREE.MathUtils.damp(this.turnRate, 0, 8, dt);
+      return;
+    }
+    const yaw = Math.atan2(ax, az);
     let d = yaw - this.lastYaw;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
@@ -422,25 +427,46 @@ export class Game {
     this.eva.group.rotation.y = yaw;
   }
 
+  private tryStep(nx: number, nz: number) {
+    if (this.canStand(nx, nz)) {
+      this.eva.group.position.x = nx;
+      this.eva.group.position.z = nz;
+      return;
+    }
+    const x = this.eva.group.position.x;
+    const z = this.eva.group.position.z;
+    if (this.canStand(nx, z)) this.eva.group.position.x = nx;
+    else if (this.canStand(x, nz)) this.eva.group.position.z = nz;
+  }
+
+  private canStand(x: number, z: number, ignoreStep = false) {
+    if (this.blocked(x, z)) return false;
+    const h = heightAt(x, z);
+    if (h < 0.08) return false;
+    if (!ignoreStep && this.grounded && h - this.eva.group.position.y > 1.15) return false;
+    return true;
+  }
+
   private applyHop(dt: number, onWorld: boolean) {
     if (this.sailing) return;
     const p = this.eva.group.position;
     const ground = onWorld ? heightAt(p.x, p.z) : 0;
     if (this.input.consume("Space") && this.grounded) {
-      this.evaVy = onWorld ? 7.6 : 5.4;
+      this.evaVy = onWorld ? 11.4 : 6.8;
       this.grounded = false;
     }
     this.floating = this.input.pressed("Space") && !this.grounded;
     if (!this.grounded) {
       if (this.floating) {
-        this.evaVy -= 5.2 * dt;
-        if (this.evaVy > 2.4) this.evaVy = 2.4;
-        this.evaVy = Math.max(this.evaVy, -1.05);
+        this.evaVy -= 3.1 * dt;
+        this.evaVy += Math.sin(this.elapsed * 14) * 3.4 * dt;
+        if (this.evaVy > 3.6) this.evaVy = 3.6;
+        this.evaVy = Math.max(this.evaVy, -0.48);
       } else {
-        this.evaVy -= 24 * dt;
+        this.evaVy -= 18 * dt;
       }
       p.y += this.evaVy * dt;
-      const ceiling = onWorld ? ground + 12 : 2.55;
+      const ceiling = onWorld ? ground + 16 : 2.85;
       if (p.y > ceiling) {
         p.y = ceiling;
         this.evaVy = Math.min(this.evaVy, 0);
@@ -486,25 +512,42 @@ export class Game {
     }
   }
 
-  private updateCamera(dt: number) {
-    const targetFov = this.spyglass ? 26 : this.currentInterior ? 55 : this.sailing ? 50 : 48;
-    this.fov = THREE.MathUtils.lerp(this.fov, targetFov, 1 - Math.pow(0.01, dt));
+  private updateCamera(dt: number, snap = false) {
+    const inside = !!this.currentInterior;
+    const targetFov = this.spyglass ? 26 : inside ? 52 : this.sailing ? 50 : 48;
+    this.fov = snap ? targetFov : THREE.MathUtils.lerp(this.fov, targetFov, 1 - Math.pow(0.01, dt));
     this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();
-    const dist = this.currentInterior ? THREE.MathUtils.clamp(this.camDist, 2.4, 4.4) : this.sailing ? this.camDist + 3 : this.camDist;
-    const pitch = this.currentInterior ? THREE.MathUtils.clamp(this.camPitch, 0.22, 0.55) : this.camPitch;
+    const dist = inside
+      ? THREE.MathUtils.clamp(this.camDist, 2.6, 4.6)
+      : this.sailing
+        ? this.camDist + 3
+        : this.camDist;
+    const pitch = inside ? THREE.MathUtils.clamp(this.camPitch, 0.42, 1.02) : this.camPitch;
     const t = this.eva.group.position;
-    const lookY = this.currentInterior ? 1.05 : 1.15;
+    const lookY = inside ? 0.82 : 1.15;
     const look = new THREE.Vector3(t.x, t.y + lookY, t.z);
     const ox = Math.sin(this.camYaw) * Math.cos(pitch) * dist;
     const oy = Math.sin(pitch) * dist;
     const oz = Math.cos(this.camYaw) * Math.cos(pitch) * dist;
     const desired = new THREE.Vector3(look.x - ox, look.y + oy, look.z - oz);
-    this.camera.position.lerp(desired, 1 - Math.pow(0.02, dt));
+    if (inside) this.keepCamInRoom(desired);
+    if (snap) this.camera.position.copy(desired);
+    else this.camera.position.lerp(desired, 1 - Math.pow(0.02, dt));
+    if (inside) this.keepCamInRoom(this.camera.position);
     this.camera.lookAt(look);
     this.sky.dir.target.position.copy(t);
     this.sky.dir.target.updateMatrixWorld();
     this.sky.dir.position.copy(t).add(this.sky.sunDir.clone().multiplyScalar(70));
+  }
+
+  private keepCamInRoom(p: THREE.Vector3) {
+    const f = this.currentInterior?.floor;
+    if (!f) return;
+    const pad = 0.72;
+    p.x = THREE.MathUtils.clamp(p.x, f.minX + pad, f.maxX - pad);
+    p.z = THREE.MathUtils.clamp(p.z, f.minZ + pad, f.maxZ - pad);
+    p.y = THREE.MathUtils.clamp(p.y, 1.25, 3.25);
   }
 
   private gatherPrompt() {
@@ -629,10 +672,12 @@ export class Game {
       rebuildDecor(room, this.save.decorations);
     }
     this.renderPass.scene = this.interiorScene;
-    this.camDist = 2.9;
-    this.camPitch = 0.28;
-    this.camYaw = Math.PI;
+    this.worldCam = { yaw: this.camYaw, pitch: this.camPitch, dist: this.camDist };
+    this.camDist = 3.45;
+    this.camPitch = 0.68;
+    this.camYaw = 0;
     this.setState("interior");
+    this.updateCamera(1, true);
     this.audio.chime("ui");
   }
 
@@ -641,8 +686,7 @@ export class Game {
     this.world.add(this.eva.group);
     const h = this.houseInside;
     if (h) {
-      const dist = h.kind === "home" ? 5.65 : 3.55;
-      const o = houseWorldOffset(h, 0, dist);
+      const o = this.outdoorStand(h);
       this.eva.group.position.set(o.x, heightAt(o.x, o.z), o.z);
       this.eva.group.rotation.y = h.yaw;
     } else {
@@ -656,7 +700,24 @@ export class Game {
     this.houseInside = null;
     this.renderPass.scene = this.world;
     this.decorate = false;
+    this.camYaw = this.worldCam.yaw;
+    this.camPitch = this.worldCam.pitch;
+    this.camDist = this.worldCam.dist;
     this.setState("world");
+    this.updateCamera(1, true);
+  }
+
+  private outdoorStand(h: HouseAnchor) {
+    const depths = h.kind === "home" ? [6.6, 7.4, 5.8, 8.2, 4.8] : [4.4, 5.2, 3.7, 6.0];
+    const sides = [0, 0.9, -0.9, 1.6, -1.6];
+    for (const dist of depths) {
+      for (const side of sides) {
+        const o = houseWorldOffset(h, side, dist);
+        if (!this.canStand(o.x, o.z, true)) continue;
+        return o;
+      }
+    }
+    return houseWorldOffset(h, 0, h.kind === "home" ? 6.6 : 4.4);
   }
 
   private doInterior(kind: InteriorRoom["interacts"][number]["kind"]) {
@@ -1132,12 +1193,12 @@ export class Game {
       this.save.items.heart_conch = 1;
       fillShelf(this.currentInterior!, this.save.displayed);
       this.eva.group.position.set(0, 0, -0.3);
-      this.camYaw = Math.PI;
-      this.camPitch = 0.22;
-      this.camDist = 2.5;
+      this.camYaw = 0;
+      this.camPitch = 0.62;
+      this.camDist = 3.4;
     }
     this.camera.position.set(this.eva.group.position.x + 8, 8, this.eva.group.position.z + 8);
-    this.updateCamera(1);
+    this.updateCamera(1, true);
   }
 }
 
