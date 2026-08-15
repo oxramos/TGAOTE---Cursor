@@ -11,6 +11,20 @@ function heartShape(s = 1): THREE.Shape {
   return sh;
 }
 
+function hullShape(): THREE.Shape {
+  const s = new THREE.Shape();
+  s.moveTo(0, 3.45);
+  s.bezierCurveTo(0.38, 3.15, 0.95, 2.15, 1.18, 0.95);
+  s.lineTo(1.22, -0.45);
+  s.lineTo(1.12, -2.15);
+  s.bezierCurveTo(0.98, -2.85, 0.48, -3.18, 0, -3.22);
+  s.bezierCurveTo(-0.48, -3.18, -0.98, -2.85, -1.12, -2.15);
+  s.lineTo(-1.22, -0.45);
+  s.lineTo(-1.18, 0.95);
+  s.bezierCurveTo(-0.95, 2.15, -0.38, 3.15, 0, 3.45);
+  return s;
+}
+
 export class RedBoat {
   group = new THREE.Group();
   sail: THREE.Mesh;
@@ -20,89 +34,90 @@ export class RedBoat {
   private sailRest: Float32Array;
 
   constructor() {
-    const hull = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.72, 3.85), toon(PALETTE.boatRed));
-    hull.position.set(0, 0.22, -0.18);
+    const hullGeo = new THREE.ExtrudeGeometry(hullShape(), {
+      depth: 0.92,
+      bevelEnabled: true,
+      bevelThickness: 0.07,
+      bevelSize: 0.05,
+      bevelSegments: 2,
+    });
+    hullGeo.rotateX(-Math.PI / 2);
+    hullGeo.rotateY(Math.PI);
+    hullGeo.translate(0, 0.1, 0);
+    hullGeo.computeVertexNormals();
+    const hull = new THREE.Mesh(hullGeo, toon(PALETTE.boatRed));
     hull.castShadow = true;
     this.group.add(hull);
-    this.group.add(outlineClone(hull, 0.045));
+    this.group.add(outlineClone(hull, 0.04));
 
-    const bow = new THREE.Mesh(new THREE.ConeGeometry(1.08, 1.85, 10), toon(PALETTE.boatRed));
-    bow.rotation.x = -Math.PI / 2;
-    bow.position.set(0, 0.28, 2.28);
-    bow.scale.set(0.95, 1, 0.72);
-    this.group.add(bow);
-    this.group.add(outlineClone(bow, 0.04));
-
-    const transom = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.78, 0.2), toon(PALETTE.boatRed));
-    transom.position.set(0, 0.34, -2.12);
-    this.group.add(transom);
-
-    const keel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.48, 3.45), toon(0x8a1a1a));
-    keel.position.set(0, -0.12, -0.15);
-    this.group.add(keel);
-
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.07, 2.55), toon(PALETTE.wood));
-    deck.position.set(0, 0.58, -0.45);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.07, 4.15), toon(PALETTE.wood));
+    deck.position.set(0, 0.88, -0.2);
     this.group.add(deck);
 
-    const well = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.14, 1.35), toon(0x6b3a22));
-    well.position.set(0, 0.62, 0.72);
+    const well = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.18, 1.65), toon(0x6b3a22));
+    well.position.set(0, 0.94, 0.55);
     this.group.add(well);
 
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.16, 0.32), toon(PALETTE.woodDeep));
-    bench.position.set(0, 0.72, 0.28);
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(1.32, 0.14, 0.36), toon(PALETTE.woodDeep));
+    bench.position.set(0, 1.05, 0.12);
     this.group.add(bench);
 
-    const bulkhead = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.55, 0.1), toon(PALETTE.boatRed));
-    bulkhead.position.set(0, 0.85, -0.12);
+    const bulkhead = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.52, 0.1), toon(PALETTE.boatRed));
+    bulkhead.position.set(0, 1.16, -0.45);
     this.group.add(bulkhead);
 
-    for (const x of [-0.98, 0.98]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 3.65), toon(0xfff6ea));
-      rail.position.set(x, 0.7, -0.12);
+    const transom = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.62, 0.14), toon(PALETTE.boatRed));
+    transom.position.set(0, 0.62, -3.12);
+    this.group.add(transom);
+
+    const stem = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.85, 0.42), toon(PALETTE.boatRed));
+    stem.position.set(0, 0.72, 3.28);
+    this.group.add(stem);
+
+    const keel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 4.4), toon(0x8a1a1a));
+    keel.position.set(0, -0.04, -0.15);
+    this.group.add(keel);
+
+    for (const x of [-1.08, 1.08]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 4.55), toon(0xfff6ea));
+      rail.position.set(x, 1.04, -0.15);
       this.group.add(rail);
     }
-    const sternRail = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.22, 0.1), toon(0xfff6ea));
-    sternRail.position.set(0, 0.72, -2.08);
+    const sternRail = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.18, 0.08), toon(0xfff6ea));
+    sternRail.position.set(0, 1.04, -3.08);
     this.group.add(sternRail);
 
-    const bowRail = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.045, 6, 12, Math.PI));
-    bowRail.material = toon(0xfff6ea);
-    bowRail.rotation.x = Math.PI / 2;
-    bowRail.position.set(0, 0.74, 1.95);
-    this.group.add(bowRail);
-
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 3.45, 8), toon(PALETTE.woodDeep));
-    mast.position.set(0, 2.28, -1.15);
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 4.05, 8), toon(PALETTE.woodDeep));
+    mast.position.set(0, 2.85, -1.55);
     this.group.add(mast);
 
-    const sailGeo = new THREE.PlaneGeometry(1.95, 2.45, 12, 12);
+    const sailGeo = new THREE.PlaneGeometry(1.95, 2.65, 12, 12);
     this.sailRest = new Float32Array(sailGeo.attributes.position.array as Float32Array);
     this.sail = new THREE.Mesh(
       sailGeo,
       new THREE.MeshLambertMaterial({ color: PALETTE.sail, side: THREE.DoubleSide }),
     );
-    this.sail.position.set(0.92, 2.18, -0.85);
-    this.sail.rotation.y = 0.22;
+    this.sail.position.set(0.88, 2.55, -1.22);
+    this.sail.rotation.y = 0.28;
     this.group.add(this.sail);
 
     this.boom = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 1.95, 6), toon(PALETTE.wood));
     this.boom.rotation.x = Math.PI / 2;
-    this.boom.position.set(0.55, 1.18, -0.72);
+    this.boom.position.set(0.52, 1.35, -1.12);
     this.group.add(this.boom);
 
-    const gaff = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.45, 6), toon(PALETTE.wood));
+    const gaff = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 1.45, 6), toon(PALETTE.wood));
     gaff.rotation.x = Math.PI / 2;
-    gaff.position.set(0.42, 3.22, -0.92);
+    gaff.position.set(0.42, 3.72, -1.32);
     this.group.add(gaff);
 
-    const tiller = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.85, 6), toon(PALETTE.woodDeep));
+    const tiller = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.82, 6), toon(PALETTE.woodDeep));
     tiller.rotation.x = Math.PI / 2;
-    tiller.position.set(0, 0.82, -1.55);
+    tiller.position.set(0, 1.08, -2.25);
     this.group.add(tiller);
 
     this.vane = new THREE.Group();
-    this.vane.position.set(0, 4.02, -1.15);
+    this.vane.position.set(0, 4.88, -1.55);
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.28, 6), toon(0xf2c14e));
     stick.position.y = 0.14;
     this.vane.add(stick);
@@ -112,18 +127,11 @@ export class RedBoat {
     this.group.add(this.vane);
 
     const emblem = new THREE.Group();
-    emblem.position.set(0, 0.62, 2.85);
-    const hg = new THREE.ExtrudeGeometry(heartShape(0.24), { depth: 0.07, bevelEnabled: false });
+    emblem.position.set(0, 0.72, 3.22);
+    const hg = new THREE.ExtrudeGeometry(heartShape(0.2), { depth: 0.06, bevelEnabled: false });
     hg.center();
     const heart = new THREE.Mesh(hg, toon(0xe23a3a));
     emblem.add(heart);
-    [0xff8ba7, 0x7bc47a, 0x7ec8e8].forEach((col, i) => {
-      const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), toon(col));
-      f.scale.set(0.4, 1.6, 0.22);
-      f.position.set((i - 1) * 0.13, 0.22, 0.02);
-      f.rotation.z = (i - 1) * 0.45;
-      emblem.add(f);
-    });
     this.group.add(emblem);
 
     const geo = new THREE.BufferGeometry();
@@ -133,7 +141,7 @@ export class RedBoat {
       geo,
       new THREE.PointsMaterial({ color: 0xffffff, size: 0.16, transparent: true, opacity: 0.5 }),
     );
-    this.wake.position.set(0, 0.04, -2.25);
+    this.wake.position.set(0, 0.04, -3.15);
     this.group.add(this.wake);
   }
 
@@ -142,7 +150,7 @@ export class RedBoat {
     const fill = THREE.MathUtils.clamp(sailAmt * polar, 0, 1);
     const luff = polar < 0.18 ? Math.sin(t * 16) * 0.14 : 0;
     const boomYaw = THREE.MathUtils.clamp(Math.sin(rel) * 0.55, -0.7, 0.7) * Math.max(0.25, sailAmt);
-    this.sail.rotation.y = 0.22 + boomYaw + luff;
+    this.sail.rotation.y = 0.28 + boomYaw + luff;
     this.boom.rotation.y = boomYaw * 0.85;
     this.boom.rotation.z = 0.04;
     this.vane.rotation.y = rel;

@@ -1,24 +1,38 @@
 type Bus = { sea: GainNode; island: GainNode; room: GainNode; ui: GainNode; stinger: GainNode; hymn: GainNode };
 
-/** Eva's Sea Hymn — a pentatonic G major phrase meant to feel like a Wind Waker overworld. 0 = rest. */
-const DAY_HYMN = [
-  392, 494, 587, 523, 494, 392, 330, 0,
-  392, 440, 494, 587, 659, 587, 494, 392,
-  330, 392, 440, 392, 330, 294, 392, 0,
-  494, 587, 659, 587, 494, 440, 392, 330,
+/**
+ * Eva's Sea Hymn — ~96s before it loops (192 notes at 0.5s).
+ * Same tempo indoors, at night, and on the water; rooms just play quieter.
+ * 0 = rest.
+ */
+const SEA_HYMN = [
+  392, 440, 494, 0, 587, 0, 494, 440, 392, 330, 294, 330, 392, 0, 0, 0,
+  330, 392, 440, 494, 440, 392, 330, 294, 392, 494, 587, 523, 494, 440, 392, 0,
+  494, 587, 659, 587, 784, 659, 587, 494, 440, 494, 392, 330, 392, 0, 440, 392,
+  330, 0, 392, 440, 0, 392, 330, 294, 247, 294, 330, 392, 330, 294, 392, 0,
+  587, 0, 0, 494, 659, 587, 0, 494, 440, 0, 392, 494, 587, 0, 659, 0,
+  784, 659, 587, 659, 494, 0, 440, 392, 330, 392, 494, 0, 440, 392, 330, 0,
+  294, 330, 392, 0, 440, 392, 494, 587, 0, 0, 659, 587, 494, 440, 392, 0,
+  440, 0, 494, 392, 330, 0, 294, 330, 392, 440, 494, 0, 392, 330, 392, 0,
+  294, 330, 294, 247, 294, 0, 330, 392, 330, 294, 247, 0, 294, 330, 392, 0,
+  392, 440, 392, 330, 294, 330, 392, 0, 494, 440, 392, 330, 294, 0, 392, 0,
+  659, 587, 494, 587, 440, 494, 392, 0, 330, 392, 440, 494, 587, 494, 392, 0,
+  392, 494, 587, 659, 587, 0, 494, 440, 392, 330, 294, 330, 392, 494, 392, 0,
 ];
-const NIGHT_HYMN = [
-  330, 392, 494, 440, 392, 330, 294, 330,
-  247, 294, 330, 392, 330, 294, 247, 0,
-  330, 392, 440, 392, 330, 262, 294, 330,
-  392, 330, 294, 247, 220, 247, 330, 0,
-];
-const INDOOR_HYMN = [
-  523, 659, 784, 659, 587, 523, 440, 523,
-  392, 523, 659, 587, 523, 440, 392, 0,
-  523, 587, 659, 784, 659, 587, 523, 440,
-  392, 440, 523, 587, 523, 440, 392, 330,
-];
+
+const THIRD_BELOW: Record<number, number> = {
+  247: 196,
+  294: 247,
+  330: 262,
+  349: 294,
+  392: 330,
+  440: 349,
+  494: 392,
+  523: 440,
+  587: 494,
+  659: 523,
+  784: 659,
+};
 
 export class AudioBed {
   ctx: AudioContext | null = null;
@@ -34,7 +48,6 @@ export class AudioBed {
   private nextNote = 0;
   private hymnI = 0;
   private nextBass = 0;
-  private nextArp = 0;
   private organ: PeriodicWave | null = null;
 
   async resume() {
@@ -89,14 +102,13 @@ export class AudioBed {
       else if (this.island === "stone") island *= 0.82;
     }
     const room = this.indoors ? 0.38 : 0.04;
-    const hymn = this.indoors ? 0.62 : this.night ? 0.58 : sailing ? 0.78 : 0.84;
+    const hymn = this.indoors ? 0.48 : this.night ? 0.62 : sailing ? 0.78 : 0.84;
     this.buses.sea.gain.linearRampToValueAtTime(sea, now + 0.45);
     this.buses.island.gain.linearRampToValueAtTime(island, now + 0.45);
     this.buses.room.gain.linearRampToValueAtTime(room, now + 0.45);
     this.buses.hymn.gain.linearRampToValueAtTime(hymn, now + 0.55);
   }
 
-  /** Airy surf / breeze — high-passed pink, never a brown rumble. */
   private breeze() {
     const ctx = this.ctx!;
     const bufferSize = 2 * ctx.sampleRate;
@@ -188,31 +200,32 @@ export class AudioBed {
     const now = this.ctx.currentTime;
     if (this.nextNote > now + 1.2) return;
     if (now > this.nextNote + 1.4) this.nextNote = now;
-    const phrase = this.indoors ? INDOOR_HYMN : this.night ? NIGHT_HYMN : DAY_HYMN;
-    const step = this.indoors ? 0.4 : this.night ? 0.58 : 0.46;
+    const step = 0.5;
     while (this.nextNote <= now + 0.08) {
-      const f = phrase[this.hymnI % phrase.length];
-      const long = this.hymnI % 8 === 7;
-      const dur = step * (long ? 1.7 : 0.95);
+      const raw = SEA_HYMN[this.hymnI % SEA_HYMN.length];
+      const f = raw === 0 ? 0 : this.night ? raw * 0.84 : raw;
+      const bar = this.hymnI % 16;
+      const dur = step * (bar === 15 || f === 0 ? 1.15 : bar % 4 === 3 ? 1.35 : 0.92);
       if (f > 0) {
-        this.bell(f, dur, 0.11);
-        this.bell(f * 2, dur * 0.55, 0.028, 0.02);
-        if (this.hymnI % 2 === 0) this.bell(f * 1.5, dur * 0.8, 0.03, 0.03);
+        const gain = this.indoors ? 0.068 : 0.11;
+        this.bell(f, dur, gain);
+        const third = THIRD_BELOW[raw];
+        if (third && bar % 8 === 0) {
+          this.bell(this.night ? third * 0.84 : third, dur * 1.65, this.indoors ? 0.02 : 0.038, 0.04);
+        }
+        if (!this.indoors && bar === 0) this.bell(f * 0.5, dur * 1.8, 0.03, 0.02);
       }
       this.hymnI++;
       this.nextNote += step;
     }
     if (now >= this.nextBass) {
-      const roots = this.night ? [164.81, 196, 146.83, 196] : this.indoors ? [196, 246.94, 220, 196] : [196, 246.94, 220, 174.61];
-      const root = roots[Math.floor(this.hymnI / 8) % roots.length];
-      this.bell(root / 2, step * 3.4, 0.07);
-      this.bell(root, step * 3.2, 0.035, 0.04);
-      this.nextBass = now + step * 8;
-    }
-    if (now >= this.nextArp) {
-      const arp = this.night ? [330, 392, 494, 392] : [392, 494, 587, 494];
-      arp.forEach((f, i) => this.bell(f, step * 0.7, 0.018, i * step * 0.25));
-      this.nextArp = now + step * 4;
+      const prog = this.night
+        ? [164.81, 196, 146.83, 174.61, 164.81, 146.83, 130.81, 196]
+        : [196, 246.94, 220, 146.83, 196, 164.81, 174.61, 146.83];
+      const root = prog[Math.floor(this.hymnI / 16) % prog.length];
+      this.bell(root / 2, step * 6.5, this.indoors ? 0.032 : 0.065);
+      this.bell(root, step * 6.2, 0.028, 0.06);
+      this.nextBass = now + step * 16;
     }
   }
 
@@ -241,7 +254,7 @@ export class AudioBed {
     sparkle.frequency.value = freq * 2;
     const sg = this.ctx.createGain();
     sg.gain.setValueAtTime(0, now);
-    sg.gain.linearRampToValueAtTime(gain * 0.28, now + 0.012);
+    sg.gain.linearRampToValueAtTime(gain * 0.22, now + 0.012);
     sg.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.4);
     sparkle.connect(sg).connect(bus);
     sparkle.start(now);

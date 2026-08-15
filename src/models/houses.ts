@@ -13,7 +13,7 @@ export function createHouse(kind: HouseKind): THREE.Group {
   if (kind === "brine") g.add(boatHouse());
   const lamp = new THREE.PointLight(0xffc07a, 0, 9);
   lamp.name = "porch-lamp";
-  lamp.position.set(0, 2.15, 2.35);
+  lamp.position.set(0, kind === "coral" ? 4.2 : 2.15, kind === "coral" ? 2.85 : 2.35);
   g.add(lamp);
   return g;
 }
@@ -635,64 +635,65 @@ function stiltShop(): THREE.Group {
   const g = new THREE.Group();
   const plank = texMat(planks(0x3ecfcf));
   const wood = texMat(planks(PALETTE.wood));
-  for (const x of [-1.65, 1.65]) {
-    for (const z of [-1.35, 1.35]) {
-      g.add(cyl(0.1, 0.13, 2.05, PALETTE.woodDeep, x, 1.0, z, 6));
+  const deckY = 2.85;
+
+  for (const x of [-1.75, 1.75]) {
+    for (const z of [-1.45, 1.45]) {
+      g.add(cyl(0.11, 0.14, deckY + 0.1, PALETTE.woodDeep, x, (deckY + 0.1) / 2, z, 6));
     }
   }
-  g.add(box(3.2, 0.08, 0.08, PALETTE.woodDeep, 0, 0.7, 1.35));
-  g.add(box(3.2, 0.08, 0.08, PALETTE.woodDeep, 0, 1.15, -1.35));
-  g.add(tbox(4.25, 0.16, 3.55, wood, 0, 2.02, 0));
-  for (const x of [-1.95, 1.95]) g.add(box(0.08, 0.45, 3.2, PALETTE.wood, x, 2.28, 0));
+  g.add(box(3.55, 0.08, 0.08, PALETTE.woodDeep, 0, 1.15, 1.45));
+  g.add(box(3.55, 0.08, 0.08, PALETTE.woodDeep, 0, 1.15, -1.45));
+  g.add(box(0.08, 0.08, 2.9, PALETTE.woodDeep, -1.75, 1.55, 0));
+  g.add(box(0.08, 0.08, 2.9, PALETTE.woodDeep, 1.75, 1.55, 0));
 
-  g.add(tbox(3.85, 2.35, 0.18, plank, 0, 3.22, -1.55));
-  g.add(tbox(0.18, 2.35, 3.15, plank, -1.9, 3.22, 0));
-  g.add(tbox(0.18, 2.35, 3.15, plank, 1.9, 3.22, 0));
-  g.add(tbox(3.85, 2.35, 0.18, plank, 0, 3.22, 1.55));
-  g.add(box(1.05, 1.85, 0.12, PALETTE.wood, 0, 2.98, 1.66));
-  g.add(box(0.18, 1.85, 0.14, PALETTE.woodDeep, -0.58, 2.98, 1.68));
-  g.add(box(0.18, 1.85, 0.14, PALETTE.woodDeep, 0.58, 2.98, 1.68));
+  g.add(tbox(4.45, 0.16, 3.7, wood, 0, deckY, 0));
+  for (const x of [-2.08, 2.08]) g.add(box(0.08, 0.42, 3.4, PALETTE.wood, x, deckY + 0.28, 0));
+
+  g.add(tbox(4.05, 2.05, 0.18, plank, 0, deckY + 1.18, -1.62));
+  g.add(tbox(0.18, 2.05, 3.25, plank, -2.02, deckY + 1.18, 0));
+  g.add(tbox(0.18, 2.05, 3.25, plank, 2.02, deckY + 1.18, 0));
+  g.add(tbox(1.28, 2.05, 0.18, plank, -1.38, deckY + 1.18, 1.62));
+  g.add(tbox(1.28, 2.05, 0.18, plank, 1.38, deckY + 1.18, 1.62));
+  g.add(tbox(4.05, 0.42, 0.18, plank, 0, deckY + 2.0, 1.62));
+  g.add(box(1.05, 1.78, 0.1, PALETTE.wood, 0, deckY + 0.95, 1.72));
+  g.add(box(0.16, 1.78, 0.12, PALETTE.woodDeep, -0.55, deckY + 0.95, 1.74));
+  g.add(box(0.16, 1.78, 0.12, PALETTE.woodDeep, 0.55, deckY + 0.95, 1.74));
 
   const thatchMat = texMat(thatch(0xd4a44a));
-  g.add(box(4.15, 0.16, 3.45, 0xc48a4a, 0, 4.38, 0));
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(3.15, 1.85, 8), thatchMat);
-  roof.position.y = 5.28;
+  g.add(box(4.35, 0.16, 3.55, 0xc48a4a, 0, deckY + 2.22, 0));
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(3.25, 1.85, 8), thatchMat);
+  roof.position.y = deckY + 3.15;
   roof.castShadow = true;
   g.add(roof);
 
-  const awning = tbox(4.25, 0.1, 1.7, texMat(shingles(0xe23a3a)), 0, 4.12, 1.85);
-  awning.rotation.x = -0.22;
+  g.add(tbox(3.55, 0.12, 1.85, wood, 0, deckY, 2.55));
+  g.add(box(3.55, 0.08, 0.08, PALETTE.wood, 0, deckY + 0.48, 3.42));
+  g.add(box(0.08, 0.48, 1.7, PALETTE.wood, -1.72, deckY + 0.28, 2.55));
+  g.add(box(0.08, 0.48, 1.7, PALETTE.wood, 1.72, deckY + 0.28, 2.55));
+
+  const awning = tbox(4.05, 0.1, 1.85, texMat(shingles(0xe23a3a)), 0, deckY + 2.15, 2.35);
+  awning.rotation.x = -0.18;
   g.add(awning);
   for (let i = 0; i < 8; i++) {
     const scallop = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), toon(i % 2 ? 0xe23a3a : 0xf2c14e));
     scallop.scale.set(1, 0.4, 1);
-    scallop.position.set(-1.75 + i * 0.5, 3.55, 2.42);
+    scallop.position.set(-1.75 + i * 0.5, deckY + 1.55, 3.15);
     g.add(scallop);
   }
 
-  prettyWindow(g, -1.15, 3.25, 1.66, 0.58, 0.68, 0, false, 0xf2c14e);
-  prettyWindow(g, 1.15, 3.25, 1.66, 0.58, 0.68, 0, false, 0xf2c14e);
-  g.add(tbox(1.15, 0.72, 0.62, wood, 1.55, 2.48, 2.05));
-  g.add(box(0.08, 0.5, 0.5, PALETTE.woodDeep, 1.05, 2.72, 2.05));
-  g.add(box(0.08, 0.5, 0.5, PALETTE.woodDeep, 2.05, 2.72, 2.05));
+  prettyWindow(g, -1.22, deckY + 1.15, 1.74, 0.52, 0.62, 0, false, 0xf2c14e);
+  prettyWindow(g, 1.22, deckY + 1.15, 1.74, 0.52, 0.62, 0, false, 0xf2c14e);
 
-  const sign = tbox(1.55, 0.55, 0.08, texMat(canvasSign("CORAL", "#fff6ea", "#c41f28")), 0, 4.52, 2.05);
+  const sign = tbox(1.55, 0.55, 0.08, texMat(canvasSign("CORAL", "#fff6ea", "#c41f28")), 0, deckY + 2.35, 2.55);
   g.add(sign);
-  g.add(cyl(0.04, 0.04, 0.4, PALETTE.woodDeep, -0.55, 4.22, 1.95, 5));
-  g.add(cyl(0.04, 0.04, 0.4, PALETTE.woodDeep, 0.55, 4.22, 1.95, 5));
 
-  g.add(cyl(0.05, 0.05, 2.2, PALETTE.woodDeep, -2.05, 1.12, 1.62, 6));
-  for (let i = 0; i < 7; i++) g.add(box(0.34, 0.07, 0.14, PALETTE.wood, -2.05, 0.28 + i * 0.28, 1.75));
-
-  g.add(box(0.58, 0.42, 0.42, PALETTE.wood, 1.85, 2.22, 1.55));
-  g.add(box(0.42, 0.34, 0.36, 0xe23a3a, 2.12, 2.18, 1.28));
-  g.add(box(0.32, 0.28, 0.3, 0xf2c14e, 1.65, 2.16, 1.72));
-  lantern(g, 1.75, 2.95, 1.72);
-  for (const col of [0x7ec8e8, 0xffb3c7, 0xf2c14e]) {
-    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), toon(col));
-    shell.position.set(-0.45 + (col & 7) * 0.12, 3.55, 1.95);
-    g.add(shell);
+  g.add(tbox(1.85, 0.1, 1.15, wood, 0, 0.08, 6.05));
+  for (let i = 0; i < 11; i++) {
+    g.add(box(1.55 - i * 0.015, 0.1, 0.36, PALETTE.wood, 0, deckY - 0.08 - i * 0.24, 3.22 + i * 0.26));
   }
+  lantern(g, -1.15, deckY + 1.05, 2.05);
+  lantern(g, 1.15, deckY + 1.05, 2.05);
   return g;
 }
 

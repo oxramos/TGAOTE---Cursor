@@ -418,8 +418,8 @@ export class Game {
       const windMul = 1 + Math.cos(this.angDelta(this.boatYaw, this.windYaw)) * 0.2;
       const nx = this.boat.group.position.x + fx * this.boatSpeed * windMul * dt;
       const nz = this.boat.group.position.z + fz * this.boatSpeed * windMul * dt;
-      const bowX = nx + fx * 2.35;
-      const bowZ = nz + fz * 2.35;
+      const bowX = nx + fx * 3.2;
+      const bowZ = nz + fz * 3.2;
       if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.35, nz - fz * 1.35)) {
         this.boatSpeed *= 0.35;
         const safe = pushToWater(this.boat.group.position.x, this.boat.group.position.z);
@@ -436,9 +436,9 @@ export class Game {
       this.boat.group.rotation.x = Math.cos(this.elapsed * 1.1) * 0.035;
       this.boat.update(this.elapsed, this.boatSpeed, this.sailAmount, this.windYaw, this.boatYaw, polar);
       this.eva.group.position.set(
-        this.boat.group.position.x + fx * 1.05,
-        this.boat.group.position.y + 0.68,
-        this.boat.group.position.z + fz * 1.05,
+        this.boat.group.position.x + fx * 0.45,
+        this.boat.group.position.y + 0.92,
+        this.boat.group.position.z + fz * 0.45,
       );
       this.eva.group.rotation.y = this.boatYaw;
       this.grounded = true;
@@ -584,8 +584,15 @@ export class Game {
   private blockedInterior(x: number, z: number) {
     const room = this.currentInterior;
     if (!room) return false;
-    const rad = 0.52;
-    return room.blockers.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + rad);
+    const rad = 0.48;
+    const p = this.eva.group.position;
+    return room.blockers.some((c) => {
+      const next = Math.hypot(x - c.x, z - c.z);
+      if (next >= c.r + rad) return false;
+      const now = Math.hypot(p.x - c.x, p.z - c.z);
+      if (now < c.r + rad) return next <= now + 0.002;
+      return true;
+    });
   }
 
   private updateInterior(dt: number) {
@@ -810,7 +817,7 @@ export class Game {
   }
 
   private doorWorld(h: HouseAnchor) {
-    const depth = h.kind === "home" ? 3.75 : h.kind === "coral" ? 2.25 : h.kind === "mallow" ? 2.4 : h.kind === "pebble" ? 4.15 : 2.35;
+    const depth = h.kind === "home" ? 3.75 : h.kind === "coral" ? 5.35 : h.kind === "mallow" ? 2.4 : h.kind === "pebble" ? 4.35 : 2.35;
     const o = houseWorldOffset(h, 0, depth);
     return new THREE.Vector3(o.x, 0, o.z);
   }
@@ -1032,9 +1039,9 @@ export class Game {
     const fx = Math.sin(this.boatYaw);
     const fz = Math.cos(this.boatYaw);
     const bow = new THREE.Vector3(
-      this.boat.group.position.x + fx * 2.35,
+      this.boat.group.position.x + fx * 3.2,
       this.boat.group.position.y + 0.48,
-      this.boat.group.position.z + fz * 2.35,
+      this.boat.group.position.z + fz * 3.2,
     );
     this.ropeDir.subVectors(bow, cleat);
     const len = this.ropeDir.length();
@@ -1788,7 +1795,7 @@ export class Game {
       this.save.items.starstone = 1;
       this.save.items.heart_conch = 1;
       fillShelf(this.currentInterior!, this.save.displayed);
-      this.eva.group.position.set(0, 0, -0.3);
+      this.eva.group.position.copy(this.currentInterior!.spawn);
     }
     this.camera.position.set(this.eva.group.position.x + 8, 8, this.eva.group.position.z + 8);
     this.updateCamera(1, true);

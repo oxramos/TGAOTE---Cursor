@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { PALETTE } from "../materials";
 import { ISLANDS } from "../catalog";
-import { coastRadius } from "./islands";
 
 const VERT = `
 uniform float uTime;
@@ -32,7 +31,7 @@ float islandCover(vec2 xz) {
     if (i >= uCount) break;
     float d = length(xz - uIslands[i].xy);
     float R = uIslands[i].z;
-    cover = max(cover, 1.0 - smoothstep(R - 0.6, R + 3.4, d));
+    cover = max(cover, 1.0 - smoothstep(R * 0.68, R * 0.98, d));
   }
   return clamp(cover, 0.0, 1.0);
 }
@@ -41,13 +40,11 @@ void main() {
   vec3 p = position;
   vec3 tng = vec3(1.0, 0.0, 0.0);
   vec3 btm = vec3(0.0, 0.0, 1.0);
-  gerstner(p, tng, btm, normalize(vec2(1.0, 0.35)), 0.09, 24.0, 0.7);
-  gerstner(p, tng, btm, normalize(vec2(-0.4, 1.0)), 0.055, 14.0, 0.92);
-  gerstner(p, tng, btm, normalize(vec2(0.6, -0.8)), 0.032, 8.0, 1.08);
+  gerstner(p, tng, btm, normalize(vec2(1.0, 0.35)), 0.055, 26.0, 0.68);
+  gerstner(p, tng, btm, normalize(vec2(-0.4, 1.0)), 0.032, 15.0, 0.9);
+  gerstner(p, tng, btm, normalize(vec2(0.6, -0.8)), 0.018, 8.5, 1.05);
   vCover = islandCover(p.xz);
-  float damp = mix(1.0, 0.0, smoothstep(0.12, 0.78, vCover));
-  p.y *= damp;
-  p.y -= vCover * 0.95;
+  p.y *= mix(1.0, 0.12, smoothstep(0.2, 1.0, vCover));
   vPeak = p.y;
   vec4 w = modelMatrix * vec4(p, 1.0);
   vWorld = w.xyz;
@@ -71,7 +68,7 @@ varying float vPeak;
 varying float vCover;
 
 void main() {
-  if (vCover > 0.42) discard;
+  if (vCover > 0.97) discard;
 
   vec3 n = normalize(vNrm);
   vec3 v = normalize(cameraPosition - vWorld);
@@ -89,13 +86,14 @@ void main() {
   float shore = 0.0;
   for (int i = 0; i < 8; i++) {
     if (i >= uCount) break;
-    float d = length(vWorld.xz - uIslands[i].xy) - uIslands[i].z;
-    float ring = 1.0 - smoothstep(0.0, 2.8, abs(d - 0.8));
+    float d = length(vWorld.xz - uIslands[i].xy);
+    float R = uIslands[i].z;
+    float ring = 1.0 - smoothstep(0.0, 2.2, abs(d - R * 0.99));
     shore = max(shore, ring);
   }
-  float foam = shore * 0.62 * (1.0 - vCover) * (1.0 - lookDown * 0.4);
-  foam = max(foam, smoothstep(0.22, 0.4, vPeak) * 0.18 * (1.0 - vCover));
-  col = mix(col, uFoam, foam * 0.55);
+  float foam = shore * 0.7 * (1.0 - lookDown * 0.35);
+  foam = max(foam, smoothstep(0.16, 0.32, vPeak) * 0.16 * (1.0 - vCover));
+  col = mix(col, uFoam, foam * 0.5);
 
   float spec = pow(max(dot(reflect(-normalize(uSun), n), v), 0.0), 110.0);
   col += vec3(1.0, 0.97, 0.88) * spec * 0.28 * (1.0 - uNight * 0.45) * (1.0 - lookDown * 0.5);
@@ -109,12 +107,6 @@ function smoothstep(e0: number, e1: number, x: number) {
   return t * t * (3 - 2 * t);
 }
 
-function coverRadius(i: (typeof ISLANDS)[number]) {
-  let m = 0;
-  for (let k = 0; k < 36; k++) m = Math.max(m, coastRadius(i, (k / 36) * Math.PI * 2));
-  return m;
-}
-
 export class Ocean {
   mesh: THREE.Mesh;
   material: THREE.ShaderMaterial;
@@ -122,7 +114,7 @@ export class Ocean {
   constructor() {
     const geo = new THREE.PlaneGeometry(520, 520, 160, 160);
     geo.rotateX(-Math.PI / 2);
-    const islands = ISLANDS.slice(0, 8).map((i) => new THREE.Vector4(i.x, i.z, coverRadius(i), 0));
+    const islands = ISLANDS.slice(0, 8).map((i) => new THREE.Vector4(i.x, i.z, i.radius, 0));
     while (islands.length < 8) islands.push(new THREE.Vector4(0, 0, 0, 0));
 
     this.material = new THREE.ShaderMaterial({
@@ -155,18 +147,16 @@ export class Ocean {
     const d2 = new THREE.Vector2(-0.4, 1).normalize();
     const d3 = new THREE.Vector2(0.6, -0.8).normalize();
     let h =
-      wave(d1.x, d1.y, 0.09, 24, 0.7) +
-      wave(d2.x, d2.y, 0.055, 14, 0.92) +
-      wave(d3.x, d3.y, 0.032, 8, 1.08);
+      wave(d1.x, d1.y, 0.055, 26, 0.68) +
+      wave(d2.x, d2.y, 0.032, 15, 0.9) +
+      wave(d3.x, d3.y, 0.018, 8.5, 1.05);
     let cover = 0;
     for (const isl of ISLANDS) {
       const d = Math.hypot(x - isl.x, z - isl.z);
-      const R = coverRadius(isl);
-      cover = Math.max(cover, 1 - smoothstep(R - 0.6, R + 3.4, d));
+      const R = isl.radius;
+      cover = Math.max(cover, 1 - smoothstep(R * 0.68, R * 0.98, d));
     }
-    const damp = 1 - smoothstep(0.12, 0.78, cover);
-    h *= damp;
-    h -= cover * 0.95;
+    h *= THREE.MathUtils.lerp(1, 0.12, smoothstep(0.2, 1, cover));
     return h;
   }
 

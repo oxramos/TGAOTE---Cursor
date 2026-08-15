@@ -311,22 +311,22 @@ function homeInterior(): InteriorDraft {
   }
   group.add(hutch);
 
-  group.add(tbox(1.45, 0.08, 1.45, texMat(planks(PALETTE.wood)), -1.15, 0.72, 1.15));
+  group.add(tbox(1.45, 0.08, 1.45, texMat(planks(PALETTE.wood)), -3.55, 0.72, -0.15));
   for (const [x, z] of [
-    [-1.65, 0.7],
-    [-0.65, 0.7],
-    [-1.65, 1.6],
-    [-0.65, 1.6],
+    [-4.05, -0.6],
+    [-3.05, -0.6],
+    [-4.05, 0.3],
+    [-3.05, 0.3],
   ] as const) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 8), toon(PALETTE.woodDeep));
     leg.position.set(x, 0.38, z);
     group.add(leg);
   }
   const kettle = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), toon(0xc0c8d0));
-  kettle.position.set(-1.15, 0.92, 1.15);
+  kettle.position.set(-3.55, 0.92, -0.15);
   group.add(kettle);
-  group.add(box(0.16, 0.12, 0.16, 0xfff6ea, -0.92, 0.82, 1.32));
-  group.add(box(0.16, 0.12, 0.16, 0xfff6ea, -1.35, 0.82, 1.0));
+  group.add(box(0.16, 0.12, 0.16, 0xfff6ea, -3.32, 0.82, 0.02));
+  group.add(box(0.16, 0.12, 0.16, 0xfff6ea, -3.75, 0.82, -0.3));
 
   const chair = (x: number, z: number, yaw: number) => {
     const g = new THREE.Group();
@@ -339,8 +339,8 @@ function homeInterior(): InteriorDraft {
     g.rotation.y = yaw;
     group.add(g);
   };
-  chair(-1.15, 2.05, Math.PI);
-  chair(-1.15, 0.25, 0);
+  chair(-3.55, 0.85, Math.PI);
+  chair(-3.55, -1.05, 0);
 
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.22, 10), toon(PALETTE.wood));
   pot.position.set(3.4, 0.22, 1.55);
@@ -361,13 +361,13 @@ function homeInterior(): InteriorDraft {
   return {
     id: "home",
     group,
-    spawn: new THREE.Vector3(0, 0, 0.7),
+    spawn: new THREE.Vector3(0, 0, 3.15),
     interacts,
     floor: { minX: -5.65, maxX: 5.65, minZ: -4.55, maxZ: 4.5 },
     blockers: [
       { x: w / 2 - 2.15, z: -d / 2 + 2.35, r: 1.45 },
       { x: -w / 2 + 2.05, z: -1.55, r: 1.2 },
-      { x: -1.15, z: 1.15, r: 0.95 },
+      { x: -3.55, z: -0.15, r: 0.95 },
       { x: 0, z: -d / 2 + 0.55, r: 1.55 },
     ],
     shelfAnchors,
