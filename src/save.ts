@@ -29,7 +29,7 @@ export function freshSave(): SaveData {
     collected: [],
     tradesDone: [],
     friendship: { mallow: 0, pebble: 0, coral: 0, brine: 0 },
-    eva: { x: 6, z: 8, sailing: false },
-    boat: { x: 12, z: 8, yaw: -0.6 },
+    eva: { x: 8, z: 12, sailing: false },
+    boat: { x: 48, z: 16, yaw: -0.6 },
   };
 }

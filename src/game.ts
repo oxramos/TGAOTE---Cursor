@@ -9,7 +9,7 @@ import { Eva } from "./models/eva";
 import { RedBoat } from "./models/boat";
 import { Sky } from "./world/sky";
 import { Ocean } from "./world/ocean";
-import { buildArchipelago, heightAt, nearestIsland, beachPoint } from "./world/islands";
+import { buildArchipelago, heightAt, nearestIsland, beachPoint, berthPoint, pushToWater, isLand } from "./world/islands";
 import { CollectibleWorld } from "./world/collectibles";
 import { buildInterior, fillShelf, rebuildDecor, type InteriorRoom } from "./world/interior";
 import { createNpc } from "./models/animals";
@@ -85,7 +85,7 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.camera = new THREE.PerspectiveCamera(this.fov, innerWidth / innerHeight, 0.1, 500);
-    this.world.fog = new THREE.FogExp2(0x8ec8e8, 0.0075);
+    this.world.fog = new THREE.FogExp2(0x8ec8e8, 0.0056);
     this.world.add(this.sky.group);
     this.world.add(this.ocean.mesh);
     this.world.add(this.eva.group);
@@ -179,6 +179,7 @@ export class Game {
     this.boatYaw = this.save.boat.yaw;
     this.boat.group.rotation.y = this.boatYaw;
     this.collect.spawn(this.save.collected, this.save.day);
+    this.settleBoat();
     this.setState("world");
     this.audio.resume();
     $("title-screen").classList.add("hidden");
@@ -307,15 +308,25 @@ export class Game {
 
     if (this.sailing) {
       const axis = this.input.moveAxis();
-      this.boatYaw += axis.x * dt * 1.7;
+      this.boatYaw -= axis.x * dt * 1.7;
       const accel = axis.z < 0 ? 7.5 : axis.z > 0 ? -4 : -1.8;
       this.boatSpeed = THREE.MathUtils.clamp(this.boatSpeed + accel * dt, -2, 11);
       const fx = Math.sin(this.boatYaw);
       const fz = Math.cos(this.boatYaw);
-      this.boat.group.position.x += fx * this.boatSpeed * dt;
-      this.boat.group.position.z += fz * this.boatSpeed * dt;
-      const y = this.ocean.height(this.boat.group.position.x, this.boat.group.position.z, this.elapsed);
-      this.boat.group.position.y = y + 0.12;
+      const nx = this.boat.group.position.x + fx * this.boatSpeed * dt;
+      const nz = this.boat.group.position.z + fz * this.boatSpeed * dt;
+      const bowX = nx + fx * 1.55;
+      const bowZ = nz + fz * 1.55;
+      if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.1, nz - fz * 1.1)) {
+        this.boatSpeed *= 0.35;
+        const safe = pushToWater(this.boat.group.position.x, this.boat.group.position.z);
+        this.boat.group.position.x = safe.x;
+        this.boat.group.position.z = safe.z;
+      } else {
+        this.boat.group.position.x = nx;
+        this.boat.group.position.z = nz;
+      }
+      this.floatBoat();
       this.boat.group.rotation.y = this.boatYaw;
       this.boat.group.rotation.z = Math.sin(this.elapsed * 1.4) * 0.05;
       this.boat.group.rotation.x = Math.cos(this.elapsed * 1.1) * 0.04;
@@ -324,8 +335,8 @@ export class Game {
       this.eva.group.rotation.y = this.boatYaw;
     } else {
       this.walk(dt, true);
-      const y = this.ocean.height(this.boat.group.position.x, this.boat.group.position.z, this.elapsed);
-      this.boat.group.position.y = y + 0.1;
+      this.settleBoat();
+      this.floatBoat();
       this.boat.update(this.elapsed, 0.2);
     }
 
@@ -354,7 +365,10 @@ export class Game {
     if (onWorld) {
       if (this.blocked(nx, nz)) return;
       const h = heightAt(nx, nz);
-      if (h < 0.07) return;
+      if (h < 0.08) return;
+      const step = h - this.eva.group.position.y;
+      const dist = Math.hypot(mx, mz) || 0.0001;
+      if (step > dist * 0.85) return;
       this.eva.group.position.set(nx, h, nz);
     } else if (this.currentInterior) {
       const f = this.currentInterior.floor;
@@ -603,12 +617,30 @@ export class Game {
 
   private dock(islandId: string) {
     const isl = ISLANDS.find((i) => i.id === islandId)!;
-    const p = beachPoint(isl, this.boat.group.position.x, this.boat.group.position.z);
-    this.boat.group.position.set(p.x + (p.x - isl.x) * 0.04, 0.15, p.z + (p.z - isl.z) * 0.04);
+    const beach = beachPoint(isl, this.boat.group.position.x, this.boat.group.position.z);
+    const berth = berthPoint(isl, this.boat.group.position.x, this.boat.group.position.z);
+    this.boat.group.position.set(berth.x, 0.16, berth.z);
+    this.boatYaw = Math.atan2(berth.x - isl.x, berth.z - isl.z);
+    this.boat.group.rotation.y = this.boatYaw;
     this.sailing = false;
     this.boatSpeed = 0;
-    this.eva.group.position.set(p.x, p.y, p.z);
+    this.eva.group.position.set(beach.x, beach.y, beach.z);
+    this.floatBoat();
     this.audio.chime("ui");
+  }
+
+  private settleBoat() {
+    const p = this.boat.group.position;
+    if (!isLand(p.x, p.z)) return;
+    const safe = pushToWater(p.x, p.z);
+    p.x = safe.x;
+    p.z = safe.z;
+  }
+
+  private floatBoat() {
+    this.settleBoat();
+    const p = this.boat.group.position;
+    p.y = this.ocean.height(p.x, p.z, this.elapsed) + 0.14;
   }
 
   private takePickup(id: string) {
@@ -894,7 +926,7 @@ export class Game {
     }
     if (name === "sea") {
       this.sailing = true;
-      this.boat.group.position.set(24, 0.2, 18);
+      this.boat.group.position.set(52, 0.2, 22);
       this.boatYaw = 0.8;
       this.camYaw = 0.8;
       this.camDist = 14;
