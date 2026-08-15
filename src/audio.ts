@@ -1,4 +1,24 @@
-type Bus = { sea: GainNode; island: GainNode; room: GainNode; ui: GainNode; stinger: GainNode };
+type Bus = { sea: GainNode; island: GainNode; room: GainNode; ui: GainNode; stinger: GainNode; hymn: GainNode };
+
+/** Eva's Sea Hymn — a pentatonic G major phrase meant to feel like a Wind Waker overworld. 0 = rest. */
+const DAY_HYMN = [
+  392, 494, 587, 523, 494, 392, 330, 0,
+  392, 440, 494, 587, 659, 587, 494, 392,
+  330, 392, 440, 392, 330, 294, 392, 0,
+  494, 587, 659, 587, 494, 440, 392, 330,
+];
+const NIGHT_HYMN = [
+  330, 392, 494, 440, 392, 330, 294, 330,
+  247, 294, 330, 392, 330, 294, 247, 0,
+  330, 392, 440, 392, 330, 262, 294, 330,
+  392, 330, 294, 247, 220, 247, 330, 0,
+];
+const INDOOR_HYMN = [
+  523, 659, 784, 659, 587, 523, 440, 523,
+  392, 523, 659, 587, 523, 440, 392, 0,
+  523, 587, 659, 784, 659, 587, 523, 440,
+  392, 440, 523, 587, 523, 440, 392, 330,
+];
 
 export class AudioBed {
   ctx: AudioContext | null = null;
@@ -7,11 +27,15 @@ export class AudioBed {
   private buses: Bus | null = null;
   private stepT = 0;
   private lastFoot = 0;
-  private nightGain: GainNode | null = null;
   volume = 0.7;
   private indoors = false;
   private island = "home";
   private night = false;
+  private nextNote = 0;
+  private hymnI = 0;
+  private nextBass = 0;
+  private nextArp = 0;
+  private organ: PeriodicWave | null = null;
 
   async resume() {
     if (!this.ctx) this.ctx = new AudioContext();
@@ -26,13 +50,17 @@ export class AudioBed {
         g.connect(this.master!);
         return g;
       };
-      this.buses = { sea: mk(), island: mk(), room: mk(), ui: mk(), stinger: mk() };
-      this.buses.sea.gain.value = 0.9;
-      this.buses.island.gain.value = 0.45;
-      this.buses.room.gain.value = 0.05;
-      this.waves();
-      this.pad();
-      this.creak();
+      this.buses = { sea: mk(), island: mk(), room: mk(), ui: mk(), stinger: mk(), hymn: mk() };
+      this.buses.sea.gain.value = 0.08;
+      this.buses.island.gain.value = 0.22;
+      this.buses.room.gain.value = 0.08;
+      this.buses.hymn.gain.value = 0.82;
+      const real = new Float32Array([0, 0.55, 0.28, 0.12, 0.06, 0.03]);
+      const imag = new Float32Array(real.length);
+      this.organ = this.ctx.createPeriodicWave(real, imag);
+      this.breeze();
+      this.choirPad();
+      this.harborCreak();
     }
     this.applyAmbience();
   }
@@ -47,102 +75,177 @@ export class AudioBed {
     this.island = opts.island;
     this.night = opts.night;
     this.applyAmbience(opts.sailing);
+    this.tickHymn();
   }
 
   private applyAmbience(sailing = false) {
     if (!this.buses || !this.ctx) return;
     const now = this.ctx.currentTime;
-    const sea = this.indoors ? 0.12 : sailing ? 1 : 0.7;
-    let island = this.indoors ? 0.04 : this.night ? 0.22 : 0.4;
+    const sea = this.indoors ? 0.02 : sailing ? 0.14 : 0.07;
+    let island = this.indoors ? 0.08 : this.night ? 0.18 : 0.26;
     if (!this.indoors) {
-      if (this.island === "meadow") island += 0.18;
-      else if (this.island === "harbor") island += 0.14;
-      else if (this.island === "stone") island *= 0.5;
-      else if (this.island === "reef") island += 0.08;
+      if (this.island === "meadow") island += 0.05;
+      else if (this.island === "harbor") island += 0.04;
+      else if (this.island === "stone") island *= 0.82;
     }
-    const room = this.indoors ? 0.55 : 0.04;
-    this.buses.sea.gain.linearRampToValueAtTime(sea, now + 0.4);
-    this.buses.island.gain.linearRampToValueAtTime(island, now + 0.4);
-    this.buses.room.gain.linearRampToValueAtTime(room, now + 0.4);
-    if (this.nightGain) {
-      this.nightGain.gain.linearRampToValueAtTime(this.night && !this.indoors ? 0.045 : 0.002, now + 0.5);
-    }
+    const room = this.indoors ? 0.38 : 0.04;
+    const hymn = this.indoors ? 0.62 : this.night ? 0.58 : sailing ? 0.78 : 0.84;
+    this.buses.sea.gain.linearRampToValueAtTime(sea, now + 0.45);
+    this.buses.island.gain.linearRampToValueAtTime(island, now + 0.45);
+    this.buses.room.gain.linearRampToValueAtTime(room, now + 0.45);
+    this.buses.hymn.gain.linearRampToValueAtTime(hymn, now + 0.55);
   }
 
-  private waves() {
+  /** Airy surf / breeze — high-passed pink, never a brown rumble. */
+  private breeze() {
     const ctx = this.ctx!;
     const bufferSize = 2 * ctx.sampleRate;
     const noise = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = noise.getChannelData(0);
-    let last = 0;
+    let b0 = 0;
+    let b1 = 0;
+    let b2 = 0;
     for (let i = 0; i < bufferSize; i++) {
-      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-      data[i] = last * 3.5;
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99765 * b0 + w * 0.099046;
+      b1 = 0.963 * b1 + w * 0.2965164;
+      b2 = 0.5703 * b2 + w * 1.052691;
+      data[i] = (b0 + b1 + b2 + w * 0.1848) * 0.18;
     }
     const src = ctx.createBufferSource();
     src.buffer = noise;
     src.loop = true;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 420;
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 520;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 2400;
     const g = ctx.createGain();
-    g.gain.value = 0.38;
-    src.connect(filter).connect(g).connect(this.buses!.sea);
+    g.gain.value = 0.045;
+    src.connect(hp).connect(lp).connect(g).connect(this.buses!.sea);
     src.start();
   }
 
-  private pad() {
+  private choirPad() {
     const ctx = this.ctx!;
-    const notes = this.night ? [174.61, 220, 261.63] : [196, 246.94, 293.66, 392];
-    notes.forEach((f, i) => {
+    const voices = [
+      { f: 196, g: 0.028 },
+      { f: 246.94, g: 0.02 },
+      { f: 293.66, g: 0.022 },
+      { f: 392, g: 0.016 },
+    ];
+    voices.forEach((v, i) => {
       const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = f;
+      if (this.organ) osc.setPeriodicWave(this.organ);
+      else osc.type = "sine";
+      osc.frequency.value = v.f;
       const g = ctx.createGain();
-      g.gain.value = 0.035;
+      g.gain.value = v.g;
       const lfo = ctx.createOscillator();
-      lfo.frequency.value = 0.07 + i * 0.03;
+      lfo.frequency.value = 0.04 + i * 0.015;
       const lg = ctx.createGain();
-      lg.gain.value = 0.018;
+      lg.gain.value = v.g * 0.35;
       lfo.connect(lg).connect(g.gain);
-      osc.connect(g).connect(this.buses!.island);
+      const f = ctx.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = 900;
+      osc.connect(f).connect(g).connect(this.buses!.island);
       osc.start();
       lfo.start();
     });
     const indoor = ctx.createOscillator();
     indoor.type = "triangle";
-    indoor.frequency.value = 196;
+    indoor.frequency.value = 262;
     const ig = ctx.createGain();
-    ig.gain.value = 0.03;
+    ig.gain.value = 0.018;
     indoor.connect(ig).connect(this.buses!.room);
     indoor.start();
-    const night = ctx.createOscillator();
-    night.type = "sine";
-    night.frequency.value = 174.61;
-    this.nightGain = ctx.createGain();
-    this.nightGain.gain.value = 0.002;
-    night.connect(this.nightGain).connect(this.buses!.island);
-    night.start();
   }
 
-  private creak() {
+  private harborCreak() {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
-    osc.type = "sawtooth";
-    osc.frequency.value = 72;
+    osc.type = "triangle";
+    osc.frequency.value = 78;
     const f = ctx.createBiquadFilter();
     f.type = "bandpass";
-    f.frequency.value = 180;
+    f.frequency.value = 210;
     const g = ctx.createGain();
-    g.gain.value = 0.012;
+    g.gain.value = 0.005;
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.11;
+    lfo.frequency.value = 0.08;
     const lg = ctx.createGain();
-    lg.gain.value = 0.008;
+    lg.gain.value = 0.0035;
     lfo.connect(lg).connect(g.gain);
     osc.connect(f).connect(g).connect(this.buses!.island);
     osc.start();
     lfo.start();
+  }
+
+  private tickHymn() {
+    if (!this.ctx || !this.buses) return;
+    const now = this.ctx.currentTime;
+    if (this.nextNote > now + 1.2) return;
+    if (now > this.nextNote + 1.4) this.nextNote = now;
+    const phrase = this.indoors ? INDOOR_HYMN : this.night ? NIGHT_HYMN : DAY_HYMN;
+    const step = this.indoors ? 0.4 : this.night ? 0.58 : 0.46;
+    while (this.nextNote <= now + 0.08) {
+      const f = phrase[this.hymnI % phrase.length];
+      const long = this.hymnI % 8 === 7;
+      const dur = step * (long ? 1.7 : 0.95);
+      if (f > 0) {
+        this.bell(f, dur, 0.11);
+        this.bell(f * 2, dur * 0.55, 0.028, 0.02);
+        if (this.hymnI % 2 === 0) this.bell(f * 1.5, dur * 0.8, 0.03, 0.03);
+      }
+      this.hymnI++;
+      this.nextNote += step;
+    }
+    if (now >= this.nextBass) {
+      const roots = this.night ? [164.81, 196, 146.83, 196] : this.indoors ? [196, 246.94, 220, 196] : [196, 246.94, 220, 174.61];
+      const root = roots[Math.floor(this.hymnI / 8) % roots.length];
+      this.bell(root / 2, step * 3.4, 0.07);
+      this.bell(root, step * 3.2, 0.035, 0.04);
+      this.nextBass = now + step * 8;
+    }
+    if (now >= this.nextArp) {
+      const arp = this.night ? [330, 392, 494, 392] : [392, 494, 587, 494];
+      arp.forEach((f, i) => this.bell(f, step * 0.7, 0.018, i * step * 0.25));
+      this.nextArp = now + step * 4;
+    }
+  }
+
+  private bell(freq: number, dur: number, gain: number, delay = 0) {
+    if (!this.ctx || !this.buses) return;
+    const now = this.ctx.currentTime + delay;
+    const bus = this.buses.hymn;
+    const o = this.ctx.createOscillator();
+    if (this.organ) o.setPeriodicWave(this.organ);
+    else o.type = "triangle";
+    o.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(gain, now + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    const f = this.ctx.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.setValueAtTime(Math.min(freq * 5.5, 4200), now);
+    f.frequency.exponentialRampToValueAtTime(freq * 1.8, now + dur * 0.65);
+    o.connect(f).connect(g).connect(bus);
+    o.start(now);
+    o.stop(now + dur + 0.08);
+
+    const sparkle = this.ctx.createOscillator();
+    sparkle.type = "sine";
+    sparkle.frequency.value = freq * 2;
+    const sg = this.ctx.createGain();
+    sg.gain.setValueAtTime(0, now);
+    sg.gain.linearRampToValueAtTime(gain * 0.28, now + 0.012);
+    sg.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.4);
+    sparkle.connect(sg).connect(bus);
+    sparkle.start(now);
+    sparkle.stop(now + dur * 0.5);
   }
 
   private tone(freq: number, dur: number, type: OscillatorType, gain: number, bus: GainNode, delay = 0) {
@@ -199,13 +302,14 @@ export class AudioBed {
     if (kind === "place") this.tone(440, 0.1, "sine", 0.06, bus);
   }
 
-  footsteps(dt: number, moving: boolean, grounded: boolean) {
+  footsteps(dt: number, moving: boolean, grounded: boolean, sprint = false) {
     if (!moving || !grounded) {
       this.stepT = 0;
       return;
     }
     this.stepT += dt;
-    if (this.stepT - this.lastFoot > 0.36) {
+    const gap = sprint ? 0.26 : 0.36;
+    if (this.stepT - this.lastFoot > gap) {
       this.lastFoot = this.stepT;
       this.foley("step");
     }

@@ -577,6 +577,7 @@ function stoneLibrary(): THREE.Group {
   }
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 8;
+    if (Math.sin(a) > 0.35) continue;
     const btr = tbox(0.42, 2.6, 0.55, deep, Math.cos(a) * 2.15, 1.2, Math.sin(a) * 2.15);
     btr.rotation.y = -a;
     btr.rotation.z = 0.18;
@@ -592,17 +593,20 @@ function stoneLibrary(): THREE.Group {
   g.add(cyl(0.08, 0.08, 0.85, PALETTE.woodDeep, 0, 7.75, 0, 6));
   g.add(box(0.55, 0.35, 0.05, 0x6fbf8a, 0.28, 7.95, 0));
 
-  g.add(box(1.15, 1.55, 0.2, 0x1a1410, 0, 0.95, 2.12));
+  g.add(box(1.15, 1.55, 0.2, 0x1a1410, 0, 0.95, 2.28));
   const archSh = new THREE.Shape();
   archSh.absarc(0, 0, 0.58, 0, Math.PI, false);
   archSh.lineTo(-0.58, -1.2);
   archSh.lineTo(0.58, -1.2);
-  const archGeo = new THREE.ExtrudeGeometry(archSh, { depth: 0.28, bevelEnabled: false });
+  const archGeo = new THREE.ExtrudeGeometry(archSh, { depth: 0.22, bevelEnabled: false });
   archGeo.center();
   const arch = new THREE.Mesh(archGeo, deep);
-  arch.position.set(0, 1.42, 2.18);
+  arch.position.set(0, 1.42, 2.32);
   g.add(arch);
-  g.add(box(0.95, 1.42, 0.08, PALETTE.woodDeep, 0, 0.85, 2.22));
+  g.add(box(0.95, 1.42, 0.08, PALETTE.woodDeep, 0, 0.85, 2.38));
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), toon(0xf2c14e));
+  knob.position.set(0.32, 0.95, 2.44);
+  g.add(knob);
 
   prettyWindow(g, 1.12, 3.5, 1.55, 0.5, 0.68, -0.4, false, 0x5a6b4a);
   prettyWindow(g, -1.12, 3.5, 1.55, 0.5, 0.68, 0.4, false, 0x5a6b4a);
@@ -610,15 +614,20 @@ function stoneLibrary(): THREE.Group {
   prettyWindow(g, -0.98, 5.2, 1.38, 0.42, 0.48, 0.4, false, 0x5a6b4a);
 
   const moss = new THREE.Mesh(new THREE.SphereGeometry(0.95, 10, 8), toon(PALETTE.grassDeep));
-  moss.position.set(1.45, 1.15, 1.05);
+  moss.position.set(2.05, 0.85, 0.35);
   moss.scale.set(1.6, 0.45, 1.2);
   g.add(moss);
-  g.add(box(0.52, 0.82, 0.2, 0x6fbf8a, -1.75, 0.48, 1.55));
-  g.add(box(0.44, 0.62, 0.18, 0xe23a3a, -2.0, 0.38, 1.35));
-  g.add(box(0.4, 0.52, 0.16, 0xf2c14e, -1.65, 0.34, 1.72));
-  lantern(g, 1.65, 2.45, 1.85);
-  bush(g, -2.15, 1.85, 0.85);
-  steps(g, 0, 2.55, 0, 3);
+  g.add(box(0.52, 0.82, 0.2, 0x6fbf8a, -2.35, 0.48, 0.55));
+  g.add(box(0.44, 0.62, 0.18, 0xe23a3a, -2.55, 0.38, 0.28));
+  g.add(box(0.4, 0.52, 0.16, 0xf2c14e, -2.15, 0.34, 0.72));
+  g.add(tbox(2.85, 0.18, 4.2, texMat(stoneBlocks(PALETTE.stoneDeep)), 0, 0.08, 3.85));
+  for (let i = 0; i < 9; i++) {
+    g.add(box(1.55 - i * 0.03, 0.14, 0.48, PALETTE.stone, 0, 0.08 + i * 0.12, 2.15 + i * 0.42));
+  }
+  lantern(g, 1.85, 2.45, 2.15);
+  lantern(g, -1.85, 2.45, 2.15);
+  bush(g, -2.55, 2.45, 0.85);
+  bush(g, 2.45, 2.55, 0.75);
   return g;
 }
 
@@ -636,34 +645,38 @@ function stiltShop(): THREE.Group {
   g.add(tbox(4.25, 0.16, 3.55, wood, 0, 2.02, 0));
   for (const x of [-1.95, 1.95]) g.add(box(0.08, 0.45, 3.2, PALETTE.wood, x, 2.28, 0));
 
-  g.add(tbox(3.85, 2.25, 0.18, plank, 0, 3.18, -1.55));
-  g.add(tbox(0.18, 2.25, 3.15, plank, -1.9, 3.18, 0));
-  g.add(tbox(0.18, 2.25, 3.15, plank, 1.9, 3.18, 0));
+  g.add(tbox(3.85, 2.35, 0.18, plank, 0, 3.22, -1.55));
+  g.add(tbox(0.18, 2.35, 3.15, plank, -1.9, 3.22, 0));
+  g.add(tbox(0.18, 2.35, 3.15, plank, 1.9, 3.22, 0));
+  g.add(tbox(3.85, 2.35, 0.18, plank, 0, 3.22, 1.55));
+  g.add(box(1.05, 1.85, 0.12, PALETTE.wood, 0, 2.98, 1.66));
+  g.add(box(0.18, 1.85, 0.14, PALETTE.woodDeep, -0.58, 2.98, 1.68));
+  g.add(box(0.18, 1.85, 0.14, PALETTE.woodDeep, 0.58, 2.98, 1.68));
 
   const thatchMat = texMat(thatch(0xd4a44a));
+  g.add(box(4.15, 0.16, 3.45, 0xc48a4a, 0, 4.38, 0));
   const roof = new THREE.Mesh(new THREE.ConeGeometry(3.15, 1.85, 8), thatchMat);
-  roof.position.y = 5.15;
+  roof.position.y = 5.28;
   roof.castShadow = true;
   g.add(roof);
-  g.add(box(3.95, 0.1, 3.25, 0xc48a4a, 0, 4.28, 0));
 
-  const awning = tbox(4.25, 0.1, 1.7, texMat(shingles(0xe23a3a)), 0, 4.05, 1.72);
-  awning.rotation.x = -0.28;
+  const awning = tbox(4.25, 0.1, 1.7, texMat(shingles(0xe23a3a)), 0, 4.12, 1.85);
+  awning.rotation.x = -0.22;
   g.add(awning);
   for (let i = 0; i < 8; i++) {
     const scallop = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), toon(i % 2 ? 0xe23a3a : 0xf2c14e));
     scallop.scale.set(1, 0.4, 1);
-    scallop.position.set(-1.75 + i * 0.5, 3.48, 2.35);
+    scallop.position.set(-1.75 + i * 0.5, 3.55, 2.42);
     g.add(scallop);
   }
 
-  prettyWindow(g, -1.2, 3.2, 1.62, 0.62, 0.72, 0, false, 0xf2c14e);
-  prettyWindow(g, 1.2, 3.2, 1.62, 0.62, 0.72, 0, false, 0xf2c14e);
-  g.add(tbox(2.15, 0.85, 0.7, wood, 0, 2.55, 1.85));
-  g.add(box(0.08, 0.55, 0.55, PALETTE.woodDeep, -1.0, 2.85, 1.85));
-  g.add(box(0.08, 0.55, 0.55, PALETTE.woodDeep, 1.0, 2.85, 1.85));
+  prettyWindow(g, -1.15, 3.25, 1.66, 0.58, 0.68, 0, false, 0xf2c14e);
+  prettyWindow(g, 1.15, 3.25, 1.66, 0.58, 0.68, 0, false, 0xf2c14e);
+  g.add(tbox(1.15, 0.72, 0.62, wood, 1.55, 2.48, 2.05));
+  g.add(box(0.08, 0.5, 0.5, PALETTE.woodDeep, 1.05, 2.72, 2.05));
+  g.add(box(0.08, 0.5, 0.5, PALETTE.woodDeep, 2.05, 2.72, 2.05));
 
-  const sign = tbox(1.55, 0.55, 0.08, texMat(canvasSign("CORAL", "#fff6ea", "#c41f28")), 0, 4.45, 1.95);
+  const sign = tbox(1.55, 0.55, 0.08, texMat(canvasSign("CORAL", "#fff6ea", "#c41f28")), 0, 4.52, 2.05);
   g.add(sign);
   g.add(cyl(0.04, 0.04, 0.4, PALETTE.woodDeep, -0.55, 4.22, 1.95, 5));
   g.add(cyl(0.04, 0.04, 0.4, PALETTE.woodDeep, 0.55, 4.22, 1.95, 5));
@@ -688,26 +701,29 @@ function boatHouse(): THREE.Group {
   const plank = texMat(planks(PALETTE.wood));
   const deep = texMat(planks(PALETTE.woodDeep));
   g.add(tbox(5.05, 0.38, 3.9, deep, 0, 0.22, 0));
-  g.add(tbox(4.55, 2.25, 0.22, plank, 0, 1.5, -1.62));
-  g.add(tbox(0.22, 2.25, 3.45, plank, -2.22, 1.5, 0));
-  g.add(tbox(0.22, 2.25, 3.45, plank, 2.22, 1.5, 0));
-  g.add(tbox(1.35, 2.25, 0.18, plank, -1.55, 1.5, 1.72));
-  g.add(tbox(1.35, 2.25, 0.18, plank, 1.55, 1.5, 1.72));
-
-  g.add(box(1.85, 2.05, 0.08, 0x1a1410, 0, 1.2, 1.55));
-  const doorL = tbox(0.95, 1.95, 0.1, deep, -0.72, 1.15, 1.78);
-  doorL.rotation.y = 0.55;
+  g.add(tbox(4.55, 2.72, 0.22, plank, 0, 1.7, -1.62));
+  g.add(tbox(0.22, 2.72, 3.45, plank, -2.22, 1.7, 0));
+  g.add(tbox(0.22, 2.72, 3.45, plank, 2.22, 1.7, 0));
+  g.add(tbox(1.38, 2.72, 0.22, plank, -1.58, 1.7, 1.72));
+  g.add(tbox(1.38, 2.72, 0.22, plank, 1.58, 1.7, 1.72));
+  g.add(tbox(4.55, 0.78, 0.22, plank, 0, 2.82, 1.72));
+  g.add(box(1.85, 2.12, 0.1, 0x1a1410, 0, 1.22, 1.78));
+  const doorL = tbox(0.95, 1.95, 0.1, deep, -0.72, 1.15, 1.86);
+  doorL.rotation.y = 0.45;
   g.add(doorL);
-  const doorR = tbox(0.95, 1.95, 0.1, deep, 0.85, 1.15, 1.72);
-  doorR.rotation.y = -0.12;
+  const doorR = tbox(0.95, 1.95, 0.1, deep, 0.85, 1.15, 1.82);
+  doorR.rotation.y = -0.08;
   g.add(doorR);
 
   const roofG = pitchedRoof(5.2, 4.0, 1.65, 0x1f3a5a, 0.36);
-  roofG.position.y = 2.65;
+  roofG.position.y = 3.05;
   g.add(roofG);
   const gable = gableWall(4.55, 1.35, plank);
-  gable.position.set(0, 2.65, 1.78);
+  gable.position.set(0, 3.05, 1.78);
   g.add(gable);
+  const gableB = gableWall(4.55, 1.35, plank);
+  gableB.position.set(0, 3.05, -1.62);
+  g.add(gableB);
   prettyWindow(g, -1.45, 1.65, 1.82, 0.62, 0.7, 0, false, 0x1f3a5a);
   prettyWindow(g, 1.45, 1.65, 1.82, 0.62, 0.7, 0, false, 0x1f3a5a);
   prettyWindow(g, 0, 3.35, 1.78, 0.55, 0.48, 0, false, 0x1f3a5a);

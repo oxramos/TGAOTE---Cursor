@@ -18,7 +18,7 @@ export type Pickup = {
 const FIXED: { id: string; item: string; x: number; z: number }[] = [
   { id: "intro-cockle", item: "white_cockle", x: 11.5, z: 14.2 },
   { id: "leg-heart", item: "heart_conch", x: 16, z: 166 },
-  { id: "leg-prism", item: "prismatic_spiral", x: -168, z: -28 },
+  { id: "leg-prism", item: "prismatic_spiral", x: -162, z: -22 },
   { id: "leg-opal", item: "dawn_opal", x: 148, z: 58 },
   { id: "leg-tear", item: "wind_tear", x: 58, z: 108 },
   { id: "rare-moon", item: "moon_nautilus", x: -62, z: -118 },

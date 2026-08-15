@@ -317,64 +317,37 @@ export class Eva {
     turnRate = 0,
     airborne = false,
     floating = false,
+    sprint = false,
   ) {
     const run = moving && !airborne && !sailing;
     const flutter = floating || (airborne && !sailing);
-    this.bob += dt * (flutter ? 16 : run ? 9.2 : sailing ? 3.2 : 2.2);
+    this.bob += dt * (flutter ? 16 : run ? (sprint ? 13.5 : 9.2) : sailing ? 3.2 : 2.2);
     const step = this.bob;
-    const bounce = run ? Math.abs(Math.sin(step)) * 0.07 : flutter ? 0.06 + Math.sin(step) * 0.1 : Math.sin(step) * 0.016;
+    const bounce = run ? Math.abs(Math.sin(step)) * (sprint ? 0.1 : 0.07) : flutter ? 0.06 + Math.sin(step) * 0.1 : Math.sin(step) * 0.016;
     this.body.position.y = 0.26 + bounce + (airborne && !floating ? 0.08 : 0);
 
     const bank = THREE.MathUtils.clamp(turnRate * 0.22, -0.42, 0.42);
-    const lean = run ? 0.12 : flutter ? -0.18 : 0;
+    const lean = run ? (sprint ? 0.2 : 0.12) : flutter ? -0.18 : 0;
 
     if (this.pickupT > 0) {
       this.pickupT = Math.max(0, this.pickupT - dt);
       const u = 1 - this.pickupT / this.pickupDur;
-      const pulse = Math.sin(u * Math.PI);
-      const kind = this.pickupKind;
-      if (kind === "legendary") {
-        this.body.scale.set(1 + pulse * 0.16, 1 + pulse * 0.08, 1 + pulse * 0.16);
-        this.body.position.y = 0.26 + pulse * 0.28;
-        this.body.rotation.y = Math.sin(u * Math.PI * 2) * 0.7;
-        this.body.rotation.z = Math.sin(u * Math.PI * 2) * 0.12;
-        this.body.rotation.x = -0.12 * pulse;
-        const flap = 0.9 + pulse * 0.85;
-        this.leftWing.rotation.z = flap;
-        this.rightWing.rotation.z = -flap;
-        this.leftWing.rotation.x = -0.7 * pulse;
-        this.rightWing.rotation.x = -0.7 * pulse;
-        this.tiara.rotation.z = Math.sin(u * 18) * 0.18;
-      } else if (kind === "rare") {
-        this.body.scale.set(1 + pulse * 0.1, 1 + pulse * 0.06, 1 + pulse * 0.1);
-        this.body.position.y = 0.26 + pulse * 0.14;
-        this.body.rotation.x = -0.22 * pulse;
-        this.body.rotation.z = Math.sin(u * Math.PI) * 0.08;
-        this.body.rotation.y = 0;
-        this.leftWing.rotation.z = 0.35 + pulse * 1.05;
-        this.rightWing.rotation.z = -0.35 - pulse * 1.05;
-        this.leftWing.rotation.x = -0.45 * pulse;
-        this.rightWing.rotation.x = -0.45 * pulse;
-      } else if (kind === "uncommon") {
-        this.body.scale.set(1 + pulse * 0.11, 1 - pulse * 0.06, 1 + pulse * 0.08);
-        this.body.position.y = 0.26 + pulse * 0.06;
-        this.body.rotation.z = Math.sin(u * Math.PI) * 0.16;
-        this.body.rotation.x = 0.12 * pulse;
-        this.body.rotation.y = 0;
-        this.leftWing.rotation.z = 0.25 + pulse * 1.05;
-        this.rightWing.rotation.z = -0.25 - pulse * 0.85;
-        this.leftWing.rotation.x = -pulse * 0.55;
-        this.rightWing.rotation.x = -pulse * 0.35;
-      } else {
-        this.body.scale.set(1 + pulse * 0.12, 1 - pulse * 0.1, 1 + pulse * 0.08);
-        this.body.position.y = 0.26;
-        this.body.rotation.z = pulse * 0.18;
-        this.body.rotation.x = 0.1 * pulse;
-        this.body.rotation.y = 0;
-        this.leftWing.rotation.z = 0.2 + pulse * 1.15;
-        this.rightWing.rotation.z = -0.2 - pulse * 0.35;
-        this.leftWing.rotation.x = -pulse * 0.6;
-        this.rightWing.rotation.x = -pulse * 0.25;
+      const scoop = Math.sin(Math.min(u * 1.25, 1) * Math.PI);
+      this.body.scale.set(1, 1 - scoop * 0.08, 1);
+      this.body.position.y = 0.26 - 0.28 * scoop;
+      this.body.rotation.x = 0.95 * scoop;
+      this.body.rotation.y = 0;
+      this.body.rotation.z = 0;
+      this.leftWing.rotation.z = 0.12;
+      this.rightWing.rotation.z = -0.12;
+      this.leftWing.rotation.x = -1.35 * scoop;
+      this.rightWing.rotation.x = -1.35 * scoop;
+      this.leftWing.rotation.y = 0.12 * scoop;
+      this.rightWing.rotation.y = -0.12 * scoop;
+      if (this.pickupKind === "legendary" && u > 0.55) {
+        const hop = Math.sin((u - 0.55) / 0.45 * Math.PI);
+        this.body.position.y = 0.26 + hop * 0.18;
+        this.body.rotation.x = 0.12 * (1 - hop);
       }
     } else {
       this.body.scale.set(1, 1, 1);
@@ -407,7 +380,14 @@ export class Eva {
       }
     }
 
-    if (flutter) {
+    if (this.pickupT > 0) {
+      this.leftLeg.rotation.x = 0.55;
+      this.rightLeg.rotation.x = 0.62;
+      this.leftLeg.position.y = 0.04;
+      this.rightLeg.position.y = 0.05;
+      this.leftLeg.position.z = 0.08;
+      this.rightLeg.position.z = 0.1;
+    } else if (flutter) {
       this.leftLeg.rotation.x = 0.72;
       this.rightLeg.rotation.x = 0.8;
       this.leftLeg.position.y = 0.07;

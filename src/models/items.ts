@@ -233,36 +233,24 @@ function decorFor(def: ItemDef): THREE.Object3D {
 }
 
 export const AURA_SCALE: Record<Rarity, number> = {
-  common: 0.9,
-  uncommon: 1.4,
-  rare: 2.2,
-  legendary: 3.4,
+  common: 0.55,
+  uncommon: 0.85,
+  rare: 1.25,
+  legendary: 1.7,
 };
 
 export function createAura(def: ItemDef): THREE.Group {
   const g = new THREE.Group();
+  g.name = "aura";
   const col = def.glow ?? def.color;
-  g.add(glowSprite(col, AURA_SCALE[def.rarity]));
-  if (def.rarity === "rare" || def.rarity === "legendary") {
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: col,
-      transparent: true,
-      opacity: def.rarity === "legendary" ? 0.28 : 0.16,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-    });
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.35, def.rarity === "legendary" ? 9 : 5, 8, 1, true), beamMat);
-    beam.position.y = def.rarity === "legendary" ? 4.4 : 2.6;
-    g.add(beam);
-  }
+  g.add(glowSprite(col, AURA_SCALE[def.rarity] * 0.72));
   if (def.rarity === "legendary") {
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.55, 0.03, 6, 20),
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7 }),
+      new THREE.TorusGeometry(0.36, 0.02, 6, 18),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.32 }),
     );
     ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.5;
+    ring.position.y = 0.28;
     ring.name = "spin";
     g.add(ring);
   }

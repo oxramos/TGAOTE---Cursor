@@ -16,7 +16,7 @@ const LAND = 0.16;
 const HOUSE_LAYOUT: Record<string, { kind: HouseKind; ox: number; oz: number; yaw: number; pad: number }> = {
   home: { kind: "home", ox: -8, oz: -10, yaw: 0.42, pad: 7.6 },
   meadow: { kind: "mallow", ox: -7, oz: -6, yaw: 0.2, pad: 6.4 },
-  stone: { kind: "pebble", ox: 5, oz: -7, yaw: -0.28, pad: 6.6 },
+  stone: { kind: "pebble", ox: 6, oz: -8, yaw: 2.05, pad: 7.4 },
   palm: { kind: "coral", ox: 8, oz: 6, yaw: 0.55, pad: 6.2 },
   harbor: { kind: "brine", ox: -5, oz: 11, yaw: 3.15, pad: 6.6 },
 };
@@ -73,9 +73,9 @@ function rawHeight(isl: IslandDef, x: number, z: number): number {
   const n2 = fbm(x * 0.07 + 4, z * 0.07 - 2);
   const n3 = fbm(x * 0.15, z * 0.15);
 
-  // One continuous surface: a sandy skirt, then hills. No terrace lerp.
-  const beachT = isl.biome === "reef" ? 0.4 : isl.biome === "rocks" ? 0.16 : 0.24;
-  const lip = isl.biome === "reef" ? 0.36 : isl.biome === "rocks" ? 0.4 : 0.48;
+  // A sandy skirt, then hills that actually rise — not a pancake.
+  const beachT = isl.biome === "reef" ? 0.28 : isl.biome === "rocks" ? 0.12 : 0.16;
+  const lip = isl.biome === "reef" ? 0.42 : isl.biome === "rocks" ? 0.55 : 0.72;
   if (t > 1 - beachT) {
     const b = (t - (1 - beachT)) / beachT;
     const wet = 0.05 + 0.06 * n3;
@@ -86,34 +86,47 @@ function rawHeight(isl: IslandDef, x: number, z: number): number {
 
   switch (isl.biome) {
     case "home": {
-      let h = lip + isl.height * Math.pow(u, 1.1);
-      h += 1.05 * Math.exp(-Math.pow((ang - 0.95) / 0.85, 2)) * Math.pow(u, 1.05);
-      h += 0.7 * Math.exp(-Math.pow((ang + 2.05) / 0.95, 2)) * Math.pow(u, 1.12);
-      h += (n2 - 0.5) * 0.45 * u;
+      let h = lip + isl.height * Math.pow(u, 0.78);
+      h += 3.15 * Math.exp(-Math.pow((ang - 0.95) / 0.68, 2)) * Math.pow(u, 0.82);
+      h += 2.05 * Math.exp(-Math.pow((ang + 2.05) / 0.75, 2)) * Math.pow(u, 0.9);
+      const bowl = Math.exp(-Math.pow((ang - 2.6) / 0.65, 2)) * Math.pow(u, 0.7);
+      h -= bowl * 1.45;
+      h += Math.sin(d * 0.1 + ang * 2) * 0.85 * u;
+      h += (n2 - 0.5) * 0.95 * u;
       return h;
     }
     case "meadow": {
-      const rolls = Math.sin(ang * 2 + n * 2.2) * 1.15 + Math.sin(d * 0.14 + ang) * 0.7;
-      return lip + isl.height * Math.pow(u, 1.08) * (0.55 + 0.45 * n) + rolls * Math.pow(u, 0.7);
+      const rolls = Math.sin(ang * 2.4 + n * 2.2) * 2.45 + Math.sin(d * 0.1 + ang) * 1.55;
+      const ridge = Math.exp(-Math.pow((ang + 0.8) / 0.5, 2)) * 3.4 * Math.pow(u, 0.72);
+      return lip + isl.height * Math.pow(u, 0.82) * (0.48 + 0.52 * n) + rolls * Math.pow(u, 0.58) + ridge;
     }
     case "stone": {
-      const spine = 0.7 + 0.3 * Math.pow(Math.abs(Math.cos(ang - 0.55)), 1.35);
-      return lip + isl.height * Math.pow(u, 1.08) * spine + (n - 0.5) * 0.7 * u;
+      const spine = 0.5 + 0.62 * Math.pow(Math.abs(Math.cos(ang - 0.55)), 1.05);
+      const cliff = Math.exp(-Math.pow((ang - 0.55) / 0.36, 2)) * 4.6 * Math.pow(u, 0.58);
+      const terrace = Math.sin(d * 0.18) * 1.15 * u;
+      return lip + isl.height * Math.pow(u, 0.78) * spine + cliff + terrace + (n - 0.5) * 1.35 * u;
     }
     case "harbor": {
       const cove = Math.max(0, Math.cos(ang + 0.15));
-      const back = 1 - cove * 0.7;
-      return lip * (0.55 + 0.45 * (1 - cove)) + isl.height * Math.pow(u, 1.12) * back * (0.82 + 0.18 * n);
+      const back = 1 - cove * 0.82;
+      const quay = Math.pow(u, 1.15) * 1.85 * (1 - cove);
+      return lip * (0.4 + 0.6 * (1 - cove)) + isl.height * Math.pow(u, 0.85) * back * (0.75 + 0.25 * n) + quay;
     }
     case "palm": {
-      const dune = Math.max(0, Math.sin(ang * 2 + 0.45)) * 1.65 * Math.pow(Math.sin(Math.PI * u), 1.05);
-      return lip + isl.height * Math.pow(u, 1.1) * (0.4 + 0.3 * n) + dune;
+      const dune = Math.max(0, Math.sin(ang * 2 + 0.45)) * 3.35 * Math.pow(Math.sin(Math.PI * u), 0.95);
+      const lagoon = Math.exp(-Math.pow((ang - 2.2) / 0.65, 2)) * 1.55 * Math.pow(1 - u, 0.55);
+      return lip + isl.height * Math.pow(u, 0.85) * (0.32 + 0.38 * n) + dune - lagoon;
     }
     case "reef": {
-      return 0.1 + isl.height * Math.pow(u, 1.55) * (0.45 + 0.55 * n) + (n2 - 0.5) * 0.16;
+      const rim = Math.exp(-Math.pow((t - 0.48) / 0.14, 2)) * 3.05;
+      const inner = 0.7 + isl.height * Math.pow(Math.max(0, u - 0.12), 1.05) * (0.5 + 0.5 * n);
+      return 0.5 + rim + inner + (n2 - 0.5) * 0.22;
     }
     case "rocks": {
-      return 0.16 + isl.height * Math.pow(u, 1.25) + (n - 0.5) * 0.65 * u;
+      const stack = isl.height * Math.pow(u, 0.7);
+      const cap = u > 0.62 ? THREE.MathUtils.lerp(stack, isl.height * 0.92, (u - 0.62) / 0.38) : stack;
+      const rib = Math.abs(Math.sin(ang * 2.2)) * 1.55 * u;
+      return 0.35 + cap + rib + (n - 0.5) * 0.55 * u;
     }
   }
   return lip;
@@ -132,7 +145,7 @@ export function islandHeight(isl: IslandDef, x: number, z: number): number {
     const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
     const houseH = rawHeight(isl, hx, hz);
     const body = Math.hypot(lx / (layout.pad * 0.72), lz / (layout.pad * 0.62));
-    const path = Math.max(Math.abs(lx) / 2.5, Math.abs(lz - 4.6) / 4.8);
+    const path = Math.max(Math.abs(lx) / 2.8, Math.abs(lz - 5.4) / 6.2);
     const u = Math.min(body, path);
     if (u < 1) {
       const w = 1 - THREE.MathUtils.smootherstep(0.12, 1, u);
@@ -263,7 +276,7 @@ export function buildArchipelago(scene: THREE.Scene): { houses: HouseAnchor[]; c
         const wing = houseWorldOffset({ position: pos, yaw }, 3.55, -0.35);
         colliders.push({ x: wing.x, z: wing.z, r: 1.45 });
       } else {
-        const r = layout.kind === "pebble" ? 2.15 : layout.kind === "coral" ? 2.05 : layout.kind === "mallow" ? 2.15 : 2.25;
+        const r = layout.kind === "pebble" ? 1.62 : layout.kind === "coral" ? 1.95 : layout.kind === "mallow" ? 2.15 : 2.15;
         const body = houseWorldOffset({ position: pos, yaw }, 0, -0.25);
         colliders.push({ x: body.x, z: body.z, r });
       }
@@ -409,7 +422,9 @@ function scatter(scene: THREE.Scene, isl: IslandDef) {
     if (y < 0.55) continue;
     if (slopeAt(isl, x, z) > 0.62) continue;
     if (isl.biome === "palm") scene.add(palm(x, y, z, 0.85 + fbm(x, z) * 0.45));
-    else if (isl.biome === "stone" || isl.biome === "rocks") scene.add(boulder(x, y, z, 0.55 + fbm(z, x) * 0.7));
+    else if (isl.biome === "stone") {
+      if (i % 3 === 0) scene.add(boulder(x, y, z, 0.7 + fbm(z, x) * 0.5));
+    } else if (isl.biome === "rocks") scene.add(boulder(x, y, z, 0.55 + fbm(z, x) * 0.7));
     else if (isl.biome !== "harbor") scene.add(tree(x, y, z, 0.95 + fbm(x, i) * 0.55, isl.biome === "meadow"));
   }
   if (isl.biome === "meadow") {
@@ -444,24 +459,105 @@ function landmark(scene: THREE.Scene, isl: IslandDef) {
     const arch = makeArch();
     arch.position.set(isl.x - 8, islandHeight(isl, isl.x - 8, isl.z + 4), isl.z + 4);
     scene.add(arch);
+    const layout = HOUSE_LAYOUT.stone;
+    const hx = isl.x + layout.ox;
+    const hz = isl.z + layout.oz;
+    const yaw = layout.yaw;
+    for (let i = 0; i < 14; i++) {
+      const lz = 2.0 + i * 0.82;
+      const o = {
+        x: hx + lz * Math.sin(yaw),
+        z: hz + lz * Math.cos(yaw),
+      };
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 0.72), toon(i % 2 ? PALETTE.stone : PALETTE.stoneDeep));
+      slab.position.set(o.x, islandHeight(isl, o.x, o.z) + 0.06, o.z);
+      slab.rotation.y = yaw;
+      scene.add(slab);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = -0.15 + i * 0.32;
+      const r = 16 + i * 2.4;
+      const x = isl.x + Math.cos(a) * r;
+      const z = isl.z + Math.sin(a) * r;
+      const cliff = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.2 + i * 0.55, 1.05), toon(PALETTE.stoneDeep));
+      cliff.position.set(x, islandHeight(isl, x, z) + 1.8, z);
+      cliff.rotation.y = a + Math.PI / 2;
+      scene.add(cliff);
+    }
   }
   if (isl.biome === "home") {
     scene.add(makePier(isl, 0.32));
     scene.add(makeClothesline(isl));
+    const pondX = isl.x + 18;
+    const pondZ = isl.z - 8;
+    const pond = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.6, 0.08, 16), toon(0x3a90d4));
+    pond.position.set(pondX, islandHeight(isl, pondX, pondZ) + 0.02, pondZ);
+    scene.add(pond);
+    const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.1, 5), toon(PALETTE.grassDeep));
+    reed.position.set(pondX + 1.6, islandHeight(isl, pondX + 1.6, pondZ) + 0.55, pondZ + 0.4);
+    scene.add(reed);
+    const knollX = isl.x + 22;
+    const knollZ = isl.z + 16;
+    const knoll = new THREE.Mesh(new THREE.SphereGeometry(4.2, 12, 8), toon(PALETTE.grass));
+    knoll.scale.set(1.4, 0.42, 1.15);
+    knoll.position.set(knollX, islandHeight(isl, knollX, knollZ) + 0.4, knollZ);
+    scene.add(knoll);
   }
   if (isl.biome === "harbor") {
     scene.add(makePier(isl, 1.55));
+    for (let i = 0; i < 8; i++) {
+      const a = 1.55 + (i - 3.5) * 0.12;
+      const r = coastRadius(isl, a) + 1.1;
+      const x = isl.x + Math.cos(a) * r;
+      const z = isl.z + Math.sin(a) * r;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.85, 0.7), toon(PALETTE.stoneDeep));
+      wall.position.set(x, 0.42, z);
+      wall.rotation.y = a;
+      scene.add(wall);
+    }
   }
-  if (isl.biome === "meadow") scene.add(makePier(isl, 2.4));
+  if (isl.biome === "meadow") {
+    scene.add(makePier(isl, 2.4));
+    const ridgeX = isl.x - 10;
+    const ridgeZ = isl.z + 18;
+    const ridge = new THREE.Mesh(new THREE.SphereGeometry(6.5, 14, 10), toon(PALETTE.grass));
+    ridge.scale.set(1.55, 0.38, 1.1);
+    ridge.position.set(ridgeX, islandHeight(isl, ridgeX, ridgeZ) + 0.55, ridgeZ);
+    scene.add(ridge);
+    for (let i = 0; i < 16; i++) {
+      const a = 0.4 + i * 0.12;
+      const r = 16 + (i % 3) * 1.4;
+      const x = isl.x + Math.cos(a) * r;
+      const z = isl.z + Math.sin(a) * r;
+      const hedge = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), toon(i % 2 ? PALETTE.grass : PALETTE.grassDeep));
+      hedge.position.set(x, islandHeight(isl, x, z) + 0.4, z);
+      hedge.scale.set(1.3, 0.7, 0.8);
+      scene.add(hedge);
+    }
+  }
   if (isl.biome === "stone") scene.add(makePier(isl, -0.55));
-  if (isl.biome === "palm") scene.add(makePier(isl, 3.4));
+  if (isl.biome === "palm") {
+    scene.add(makePier(isl, 3.4));
+    for (let i = 0; i < 5; i++) {
+      const a = 0.4 + i * 0.7;
+      const r = 10 + (i % 3) * 3.2;
+      const x = isl.x + Math.cos(a) * r;
+      const z = isl.z + Math.sin(a) * r;
+      const dune = new THREE.Mesh(new THREE.SphereGeometry(2.8, 10, 8), toon(0xf6e2b8));
+      dune.scale.set(1.6, 0.35 + i * 0.04, 1.2);
+      dune.position.set(x, islandHeight(isl, x, z) + 0.25, z);
+      scene.add(dune);
+    }
+  }
   if (isl.biome === "reef") scene.add(makeReefDressing(isl));
   if (isl.biome === "rocks") {
     scene.add(makeLookoutDressing(isl));
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
       const r = 3.2 + i * 0.4;
-      scene.add(boulder(isl.x + Math.cos(a) * r, islandHeight(isl, isl.x, isl.z) * 0.4, isl.z + Math.sin(a) * r, 1.1 + i * 0.15));
+      const x = isl.x + Math.cos(a) * r;
+      const z = isl.z + Math.sin(a) * r;
+      scene.add(boulder(x, islandHeight(isl, x, z), z, 1.1 + i * 0.15));
     }
   }
 }
@@ -497,32 +593,50 @@ function makeClothesline(isl: IslandDef): THREE.Group {
 function makeReefDressing(isl: IslandDef): THREE.Group {
   const g = new THREE.Group();
   g.name = "whisper-reef";
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    const r = 4 + (i % 2) * 2.2;
+  const cy = islandHeight(isl, isl.x, isl.z) + 1.15;
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.7, 1.35, 10), toon(PALETTE.stone));
+  plinth.position.set(isl.x, islandHeight(isl, isl.x, isl.z) + 0.7, isl.z);
+  g.add(plinth);
+  const stone = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.35, 0.45, 10), toon(PALETTE.stoneDeep));
+  stone.position.set(isl.x, cy + 0.28, isl.z);
+  g.add(stone);
+  const conch = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), toon(0xf4efe6, { emissive: 0xffe8c4 }));
+  conch.scale.set(1.15, 0.55, 0.9);
+  conch.position.set(isl.x, cy + 0.62, isl.z);
+  g.add(conch);
+  const sign = makeSign("Listen");
+  sign.scale.setScalar(0.72);
+  sign.position.set(isl.x - 1.8, cy, isl.z + 1.1);
+  g.add(sign);
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    const r = 5.2 + (i % 2) * 1.6;
     const x = isl.x + Math.cos(a) * r;
     const z = isl.z + Math.sin(a) * r;
     const y = islandHeight(isl, x, z);
-    const pool = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.06, 12), toon(0x3a90d4));
-    pool.position.set(x, y + 0.04, z);
-    g.add(pool);
-    const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.03, 12), toon(0x7ec8e8));
-    glass.position.set(x, y + 0.08, z);
-    g.add(glass);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.55 + (i % 3) * 0.12, 8, 6), toon(i % 2 ? 0xe56b9e : 0x3ecfcf));
+    head.position.set(x, y + 0.45, z);
+    g.add(head);
   }
-  const rib = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.18, 0.35), toon(0xd9c4a0));
-  rib.position.set(isl.x + 2.2, islandHeight(isl, isl.x + 2.2, isl.z - 1) + 0.22, isl.z - 1);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    const r = 3.4;
+    const x = isl.x + Math.cos(a) * r;
+    const z = isl.z + Math.sin(a) * r;
+    const y = islandHeight(isl, x, z);
+    const pool = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 0.05, 12), toon(0x3a90d4));
+    pool.position.set(x, y + 0.08, z);
+    g.add(pool);
+  }
+  const rib = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.22, 0.35), toon(0xd9c4a0));
+  rib.position.set(isl.x + 3.4, islandHeight(isl, isl.x + 3.4, isl.z - 1.2) + 0.35, isl.z - 1.2);
   rib.rotation.y = 0.4;
-  rib.rotation.z = 0.08;
+  rib.rotation.z = 0.12;
   g.add(rib);
   const rib2 = rib.clone();
-  rib2.position.set(isl.x + 1.4, rib.position.y + 0.35, isl.z - 0.4);
-  rib2.rotation.z = 0.35;
+  rib2.position.set(isl.x + 2.6, rib.position.y + 0.4, isl.z - 0.55);
+  rib2.rotation.z = 0.4;
   g.add(rib2);
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 6), toon(PALETTE.woodDeep));
-  post.position.set(isl.x - 1.2, islandHeight(isl, isl.x - 1.2, isl.z + 2) + 0.7, isl.z + 2);
-  post.rotation.z = 0.5;
-  g.add(post);
   return g;
 }
 
@@ -530,16 +644,41 @@ function makeLookoutDressing(isl: IslandDef): THREE.Group {
   const g = new THREE.Group();
   g.name = "lookout-stack";
   const y = islandHeight(isl, isl.x, isl.z);
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.8, 8), toon(PALETTE.woodDeep));
-  post.position.set(isl.x + 0.4, y + 0.9, isl.z + 0.2);
-  g.add(post);
-  const glass = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), toon(0xc0d8f0, { emissive: 0x7ec8e8 }));
-  glass.position.set(isl.x + 0.4, y + 1.85, isl.z + 0.2);
-  g.add(glass);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 6, 14), toon(PALETTE.wood));
-  ring.rotation.x = Math.PI / 2;
-  ring.position.set(isl.x + 0.4, y + 1.15, isl.z + 0.2);
-  g.add(ring);
+  const px = isl.x + 0.9;
+  const pz = isl.z + 0.6;
+  for (const [ox, oz] of [
+    [-0.28, -0.22],
+    [0.3, -0.18],
+    [0.02, 0.32],
+  ] as const) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.55, 6), toon(PALETTE.woodDeep));
+    leg.position.set(px + ox, y + 0.75, pz + oz);
+    leg.rotation.z = ox * 0.35;
+    leg.rotation.x = -oz * 0.3;
+    g.add(leg);
+  }
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 8), toon(PALETTE.wood));
+  deck.position.set(px, y + 1.42, pz);
+  g.add(deck);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.05, 10), toon(0xc48a4a));
+  tube.rotation.z = Math.PI / 2;
+  tube.rotation.y = -0.7;
+  tube.position.set(px + 0.15, y + 1.62, pz + 0.12);
+  g.add(tube);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), toon(0x9fe7ff, { emissive: 0x7ec8e8 }));
+  lens.rotation.y = -0.7;
+  lens.position.set(px + 0.62, y + 1.62, pz + 0.42);
+  g.add(lens);
+  const sign = makeSign("Look");
+  sign.scale.setScalar(0.62);
+  sign.position.set(px - 1.15, y, pz - 0.4);
+  g.add(sign);
+  for (let i = 0; i < 5; i++) {
+    const step = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.1, 0.38), toon(i % 2 ? PALETTE.wood : PALETTE.woodDeep));
+    const t = i / 5;
+    step.position.set(isl.x - 1.2 + t * 1.6, y - 1.8 + i * 0.42, isl.z + 2.4 - i * 0.45);
+    g.add(step);
+  }
   return g;
 }
 

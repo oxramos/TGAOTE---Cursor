@@ -282,7 +282,7 @@ export class Game {
     this.input.beginFrame();
     if (this.state === "title") {
       this.sky.update(0.32, dt);
-      this.ocean.update(this.elapsed, this.sky.sunDir);
+      this.ocean.update(this.elapsed, this.sky.sunDir, this.sky.night);
       const bob = Math.sin(this.elapsed * 0.22) * 1.4;
       this.camera.position.set(26 + bob, 11.5, 34);
       this.camera.lookAt(-6, 2.4, -8);
@@ -329,7 +329,7 @@ export class Game {
       fog.color.copy(this.sky.material.uniforms.uHorizon.value);
       if (this.save.morningFog && this.save.time > 0.45) this.save.morningFog = false;
       fog.density = this.save.morningFog ? 0.011 : 0.0042;
-      this.ocean.update(this.elapsed, this.sky.sunDir);
+      this.ocean.update(this.elapsed, this.sky.sunDir, this.sky.night);
       this.collect.update(this.elapsed);
       this.world.traverse((o) => {
         if (o.name === "buoy") o.position.y = 0.25 + Math.sin(this.elapsed * 1.5 + o.position.x) * 0.12;
@@ -368,8 +368,9 @@ export class Game {
     if (this.currentInterior) this.updateInterior(dt);
     else this.updateWorld(dt);
 
-    this.eva.update(dt, this.isMoving(), this.sailing, this.spyglass, this.turnRate, !this.grounded && !this.sailing, this.floating);
-    this.audio.footsteps(dt, this.isMoving() && !this.sailing, this.grounded);
+    const sprinting = this.isSprinting();
+    this.eva.update(dt, this.isMoving(), this.sailing, this.spyglass, this.turnRate, !this.grounded && !this.sailing, this.floating, sprinting);
+    this.audio.footsteps(dt, this.isMoving() && !this.sailing, this.grounded, sprinting);
     const here = nearestIsland(this.eva.group.position.x, this.eva.group.position.z);
     this.audio.setAmbience({
       indoors: !!this.currentInterior,
@@ -417,9 +418,9 @@ export class Game {
       const windMul = 1 + Math.cos(this.angDelta(this.boatYaw, this.windYaw)) * 0.2;
       const nx = this.boat.group.position.x + fx * this.boatSpeed * windMul * dt;
       const nz = this.boat.group.position.z + fz * this.boatSpeed * windMul * dt;
-      const bowX = nx + fx * 1.55;
-      const bowZ = nz + fz * 1.55;
-      if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.1, nz - fz * 1.1)) {
+      const bowX = nx + fx * 2.35;
+      const bowZ = nz + fz * 2.35;
+      if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.35, nz - fz * 1.35)) {
         this.boatSpeed *= 0.35;
         const safe = pushToWater(this.boat.group.position.x, this.boat.group.position.z);
         this.boat.group.position.x = safe.x;
@@ -434,7 +435,11 @@ export class Game {
       this.boat.group.rotation.z = Math.sin(this.elapsed * 1.4) * 0.04 + heel;
       this.boat.group.rotation.x = Math.cos(this.elapsed * 1.1) * 0.035;
       this.boat.update(this.elapsed, this.boatSpeed, this.sailAmount, this.windYaw, this.boatYaw, polar);
-      this.eva.group.position.set(this.boat.group.position.x, this.boat.group.position.y + 0.62, this.boat.group.position.z);
+      this.eva.group.position.set(
+        this.boat.group.position.x + fx * 1.05,
+        this.boat.group.position.y + 0.68,
+        this.boat.group.position.z + fz * 1.05,
+      );
       this.eva.group.rotation.y = this.boatYaw;
       this.grounded = true;
       this.evaVy = 0;
@@ -460,13 +465,18 @@ export class Game {
     }
   }
 
+  private isSprinting() {
+    return !this.sailing && !this.floating && this.grounded && (this.input.pressed("ShiftLeft") || this.input.pressed("ShiftRight"));
+  }
+
   private walk(dt: number, onWorld: boolean) {
     const axis = this.input.moveAxis();
     if (!axis.x && !axis.z) {
       this.turnRate = THREE.MathUtils.damp(this.turnRate, 0, 8, dt);
       return;
     }
-    const speed = this.floating ? 6.6 : this.grounded ? 4.8 : 5.2;
+    const sprint = this.isSprinting();
+    const speed = this.floating ? 6.6 : this.grounded ? (sprint ? 8.4 : 4.8) : 5.2;
     this.moveFwd.set(Math.sin(this.camYaw), 0, Math.cos(this.camYaw));
     this.moveRight.crossVectors(this.moveFwd, this.moveUp).normalize();
     const mx = (this.moveRight.x * axis.x + this.moveFwd.x * -axis.z) * speed * dt;
@@ -479,8 +489,13 @@ export class Game {
       this.tryStep(nx, nz);
     } else if (this.currentInterior) {
       const f = this.currentInterior.floor;
-      this.eva.group.position.x = THREE.MathUtils.clamp(nx, f.minX, f.maxX);
-      this.eva.group.position.z = THREE.MathUtils.clamp(nz, f.minZ, f.maxZ);
+      const px = THREE.MathUtils.clamp(nx, f.minX, f.maxX);
+      const pz = THREE.MathUtils.clamp(nz, f.minZ, f.maxZ);
+      if (!this.blockedInterior(px, pz)) {
+        this.eva.group.position.x = px;
+        this.eva.group.position.z = pz;
+      } else if (!this.blockedInterior(px, oz)) this.eva.group.position.x = px;
+      else if (!this.blockedInterior(ox, pz)) this.eva.group.position.z = pz;
     }
     const ax = this.eva.group.position.x - ox;
     const az = this.eva.group.position.z - oz;
@@ -564,6 +579,13 @@ export class Game {
       return Math.hypot(x - hit.x, z - hit.z) <= Math.hypot(p.x - hit.x, p.z - hit.z) + 0.002;
     }
     return true;
+  }
+
+  private blockedInterior(x: number, z: number) {
+    const room = this.currentInterior;
+    if (!room) return false;
+    const rad = 0.52;
+    return room.blockers.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + rad);
   }
 
   private updateInterior(dt: number) {
@@ -757,7 +779,7 @@ export class Game {
     }
 
     const boatD = Math.hypot(p.x - this.boat.group.position.x, p.z - this.boat.group.position.z);
-    if (!this.sailing && boatD < 4.2) {
+    if (!this.sailing && boatD < 5.4) {
       consider("E — Board the red boat", () => {
         this.sailing = true;
         this.sailAmount = 0.55;
@@ -788,7 +810,7 @@ export class Game {
   }
 
   private doorWorld(h: HouseAnchor) {
-    const depth = h.kind === "home" ? 3.75 : h.kind === "coral" ? 1.95 : h.kind === "mallow" ? 2.4 : 2.2;
+    const depth = h.kind === "home" ? 3.75 : h.kind === "coral" ? 2.25 : h.kind === "mallow" ? 2.4 : h.kind === "pebble" ? 4.15 : 2.35;
     const o = houseWorldOffset(h, 0, depth);
     return new THREE.Vector3(o.x, 0, o.z);
   }
@@ -1010,9 +1032,9 @@ export class Game {
     const fx = Math.sin(this.boatYaw);
     const fz = Math.cos(this.boatYaw);
     const bow = new THREE.Vector3(
-      this.boat.group.position.x + fx * 1.45,
-      this.boat.group.position.y + 0.42,
-      this.boat.group.position.z + fz * 1.45,
+      this.boat.group.position.x + fx * 2.35,
+      this.boat.group.position.y + 0.48,
+      this.boat.group.position.z + fz * 2.35,
     );
     this.ropeDir.subVectors(bow, cleat);
     const len = this.ropeDir.length();
@@ -1045,6 +1067,8 @@ export class Game {
     const p = this.collect.pickups.find((x) => x.id === id);
     if (!p || p.taken) return;
     this.collect.take(p);
+    const aura = p.mesh.getObjectByName("aura");
+    if (aura) p.mesh.remove(aura);
     this.save.collected.push(p.id);
     this.save.items[p.item] = (this.save.items[p.item] ?? 0) + 1;
     const def = ITEMS[p.item];
@@ -1081,8 +1105,8 @@ export class Game {
       f.t += dt;
       const dur = f.rarity === "legendary" ? 1.08 : f.rarity === "rare" ? 0.86 : f.rarity === "uncommon" ? 0.6 : 0.42;
       const u = Math.min(1, f.t / dur);
-      const hands = eva.position.clone().add(fwd.clone().multiplyScalar(0.42));
-      hands.y += f.rarity === "legendary" || f.rarity === "rare" ? 0.95 : 0.55;
+      const hands = eva.position.clone().add(fwd.clone().multiplyScalar(0.55));
+      hands.y += 0.12;
       const bag = eva.position.clone();
       bag.y += 0.42;
       if (f.rarity === "rare" || f.rarity === "legendary") {
@@ -1134,8 +1158,8 @@ export class Game {
   }
 
   private burstSparkles(at: THREE.Vector3, rarity: Rarity = "common", color = 0xfff1a8) {
-    const n = rarity === "legendary" ? 28 : rarity === "rare" ? 18 : rarity === "uncommon" ? 12 : 7;
-    const size = rarity === "legendary" ? 0.7 : rarity === "rare" ? 0.55 : 0.42;
+    const n = rarity === "legendary" ? 14 : rarity === "rare" ? 9 : rarity === "uncommon" ? 6 : 4;
+    const size = rarity === "legendary" ? 0.42 : rarity === "rare" ? 0.32 : 0.24;
     for (let i = 0; i < n; i++) {
       const sprite = glowSprite(i % 3 === 0 ? 0xfff1a8 : color, size);
       const spread = rarity === "legendary" ? 0.85 : 0.45;

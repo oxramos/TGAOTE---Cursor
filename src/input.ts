@@ -43,7 +43,7 @@ export class Input {
 
   private onKeyDown = (e: KeyboardEvent) => {
     const k = e.code;
-    if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Tab"].includes(k)) e.preventDefault();
+    if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "Tab", "ShiftLeft", "ShiftRight"].includes(k)) e.preventDefault();
     if (!this.keys.has(k) && !this.virtual.has(k)) this.justPressed.add(k);
     this.keys.add(k);
   };
@@ -234,6 +234,7 @@ export class Input {
     };
 
     bindHold("touch-jump", "Space");
+    bindHold("touch-sprint", "ShiftLeft");
     bindHold("touch-look", "KeyF");
     bindTap("touch-go", "KeyE");
     bindTap("touch-bag", "Tab");

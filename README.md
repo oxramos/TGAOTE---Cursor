@@ -20,6 +20,7 @@ Then open the local Vite URL. `npm run build` typechecks and bundles to `dist/`.
 | WASD / arrows | Walk, or sail (W/S throttle, A/D steer) |
 | Drag | Orbit camera |
 | Scroll | Zoom |
+| Shift | Sprint on land |
 | E | Interact, pick up, board, dock, talk, enter |
 | F | Spyglass (zoom + highlight nearby finds) |
 | M | Unfold the sea chart (after Brine's trade) |
@@ -41,4 +42,4 @@ Neighbours remember you. Friendship opens later trades, indoor knick-knacks, and
 
 Shells and rocks come in common, uncommon, rare, and legendary. Rarer ones throw light columns and sparkles you can spot from the boat. Pick one up and it hops into Eva's satchel — open the bag (Tab) and tap a find if you want to turn it in the light.
 
-Progress saves in the browser (`tibu-eva-save-v1`).
+Progress saves in the browser (`tibu-eva-save-v1`). The sea hymn is synthesized in the browser — a plucked G-major overworld with a night lullaby and a quieter indoor music-box, sitting on a choir pad instead of brown noise.

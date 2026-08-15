@@ -20,6 +20,7 @@ export type InteriorRoom = {
   spawn: THREE.Vector3;
   interacts: { kind: InteriorInteract; position: THREE.Vector3; label: string }[];
   floor: { minX: number; maxX: number; minZ: number; maxZ: number };
+  blockers: { x: number; z: number; r: number }[];
   shelfAnchors: THREE.Object3D[];
   decorRoot: THREE.Group;
   npcAnchor: THREE.Vector3;
@@ -144,13 +145,13 @@ function withLiving(room: InteriorDraft, npc?: NpcId, gx = 0, gz = 0): InteriorR
       label: "Leave a gift",
     });
   }
-  return { ...room, friendRoot, giftAnchor };
+  return { ...room, friendRoot, giftAnchor, blockers: [...(room.blockers ?? []), ...(npc ? [{ x: gx, z: gz, r: 0.7 }] : [])] };
 }
 
 function homeInterior(): InteriorDraft {
   const group = new THREE.Group();
-  const w = 9.4;
-  const d = 7.8;
+  const w = 12.4;
+  const d = 10.4;
   const wallH = 3.15;
   const rise = 1.75;
   const siding = texMat(clapboard(PALETTE.cottage));
@@ -250,37 +251,40 @@ function homeInterior(): InteriorDraft {
   group.add(rugHeart);
 
   const brick = texMat(stoneBlocks(0xb85a4a));
-  group.add(tbox(1.85, 2.55, 0.55, brick, -3.55, 1.3, -1.35));
-  group.add(box(1.15, 0.95, 0.2, 0x1a1010, -3.55, 0.85, -1.08));
-  group.add(box(0.7, 0.12, 0.22, PALETTE.woodDeep, -3.55, 0.38, -1.05));
+  const fireX = -w / 2 + 2.05;
+  group.add(tbox(1.85, 2.55, 0.55, brick, fireX, 1.3, -1.55));
+  group.add(box(1.15, 0.95, 0.2, 0x1a1010, fireX, 0.85, -1.28));
+  group.add(box(0.7, 0.12, 0.22, PALETTE.woodDeep, fireX, 0.38, -1.25));
   const fire = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), toon(0xff8a3d, { emissive: 0xff6a1a }));
-  fire.position.set(-3.55, 0.62, -1.05);
+  fire.position.set(fireX, 0.62, -1.25);
   group.add(fire);
   const hearthLight = new THREE.PointLight(0xff7a3a, 0.55, 7);
-  hearthLight.position.set(-3.2, 1.1, -1.0);
+  hearthLight.position.set(fireX + 0.35, 1.1, -1.2);
   group.add(hearthLight);
-  group.add(box(2.05, 0.12, 0.7, PALETTE.stoneDeep, -3.55, 2.6, -1.35));
-  group.add(tbox(0.55, 0.7, 0.55, brick, -3.55, 3.05, -1.35));
+  group.add(box(2.05, 0.12, 0.7, PALETTE.stoneDeep, fireX, 2.6, -1.55));
+  group.add(tbox(0.55, 0.7, 0.55, brick, fireX, 3.05, -1.55));
 
-  const bedFrame = tbox(2.05, 0.28, 2.55, texMat(planks(PALETTE.woodDeep)), 3.15, 0.28, -1.55);
-  const mattress = box(1.92, 0.28, 2.35, 0xfff6ea, 3.15, 0.54, -1.55);
-  const quilt = box(1.92, 0.1, 1.65, PALETTE.skirt, 3.15, 0.7, -1.28);
-  const quiltTrim = box(1.92, 0.04, 0.18, 0xfff1dc, 3.15, 0.76, -0.52);
-  const pillow = box(0.7, 0.18, 0.48, 0xfff1dc, 2.85, 0.78, -2.45);
-  const pillow2 = box(0.55, 0.14, 0.4, 0xf4b3c8, 3.45, 0.76, -2.42);
+  const bedX = w / 2 - 2.15;
+  const bedZ = -d / 2 + 2.35;
+  const bedFrame = tbox(2.05, 0.28, 2.55, texMat(planks(PALETTE.woodDeep)), bedX, 0.28, bedZ);
+  const mattress = box(1.92, 0.28, 2.35, 0xfff6ea, bedX, 0.54, bedZ);
+  const quilt = box(1.92, 0.1, 1.65, PALETTE.skirt, bedX, 0.7, bedZ + 0.27);
+  const quiltTrim = box(1.92, 0.04, 0.18, 0xfff1dc, bedX, 0.76, bedZ + 1.03);
+  const pillow = box(0.7, 0.18, 0.48, 0xfff1dc, bedX - 0.3, 0.78, bedZ - 0.9);
+  const pillow2 = box(0.55, 0.14, 0.4, 0xf4b3c8, bedX + 0.3, 0.76, bedZ - 0.87);
   group.add(bedFrame, mattress, quilt, quiltTrim, pillow, pillow2);
-  group.add(box(2.05, 0.85, 0.12, trim, 3.15, 0.9, -2.78));
+  group.add(box(2.05, 0.85, 0.12, trim, bedX, 0.9, bedZ - 1.23));
   const bedHeart = new THREE.Mesh(
     new THREE.ExtrudeGeometry(heartShape(0.14), { depth: 0.03, bevelEnabled: false }).center(),
     toon(0xe23a3a),
   );
-  bedHeart.position.set(3.15, 1.15, -2.7);
+  bedHeart.position.set(bedX, 1.15, bedZ - 1.15);
   group.add(bedHeart);
-  group.add(tbox(0.55, 0.52, 0.55, texMat(planks(PALETTE.wood)), 2.05, 0.32, -2.55));
+  group.add(tbox(0.55, 0.52, 0.55, texMat(planks(PALETTE.wood)), bedX - 1.1, 0.32, bedZ - 1.0));
   const bedLamp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), toon(0xffd36a, { emissive: 0xffc14a }));
-  bedLamp.position.set(2.05, 0.72, -2.55);
+  bedLamp.position.set(bedX - 1.1, 0.72, bedZ - 1.0);
   group.add(bedLamp);
-  interacts.push({ kind: { type: "sleep" }, position: new THREE.Vector3(3.15, 0, -1.4), label: "Sleep until morning" });
+  interacts.push({ kind: { type: "sleep" }, position: new THREE.Vector3(bedX, 0, bedZ + 0.15), label: "Sleep until morning" });
 
   const shelfAnchors: THREE.Object3D[] = [];
   const hutch = new THREE.Group();
@@ -359,7 +363,13 @@ function homeInterior(): InteriorDraft {
     group,
     spawn: new THREE.Vector3(0, 0, 0.7),
     interacts,
-    floor: { minX: -4.15, maxX: 4.15, minZ: -3.2, maxZ: 3.15 },
+    floor: { minX: -5.65, maxX: 5.65, minZ: -4.55, maxZ: 4.5 },
+    blockers: [
+      { x: w / 2 - 2.15, z: -d / 2 + 2.35, r: 1.45 },
+      { x: -w / 2 + 2.05, z: -1.55, r: 1.2 },
+      { x: -1.15, z: 1.15, r: 0.95 },
+      { x: 0, z: -d / 2 + 0.55, r: 1.55 },
+    ],
     shelfAnchors,
     decorRoot,
     npcAnchor: new THREE.Vector3(2.4, 0, 1.2),
@@ -420,8 +430,8 @@ function bookStack(x: number, z: number, cols: number[]) {
 
 function mallowInterior(): InteriorDraft {
   const group = new THREE.Group();
-  const w = 8.6;
-  const d = 8.2;
+  const w = 11.4;
+  const d = 10.6;
   const wallH = 3.05;
   const wool = texMat(clapboard(0xfff0e8));
   const floorM = texMat(planks(0xf4d7c8));
@@ -496,7 +506,12 @@ function mallowInterior(): InteriorDraft {
     group,
     spawn: new THREE.Vector3(0, 0, 0.85),
     interacts,
-    floor: { minX: -3.7, maxX: 3.7, minZ: -3.4, maxZ: 3.4 },
+    floor: { minX: -5.05, maxX: 5.05, minZ: -4.6, maxZ: 4.55 },
+    blockers: [
+      { x: -2.15, z: -0.9, r: 1.05 },
+      { x: 2.4, z: 1.35, r: 0.8 },
+      { x: 1.8, z: -1.15, r: 0.9 },
+    ],
     shelfAnchors: [],
     decorRoot,
     npcAnchor,
@@ -505,8 +520,8 @@ function mallowInterior(): InteriorDraft {
 
 function pebbleInterior(): InteriorDraft {
   const group = new THREE.Group();
-  const w = 8.8;
-  const d = 8.4;
+  const w = 11.8;
+  const d = 11.2;
   const wallH = 3.35;
   const stone = texMat(stoneBlocks(PALETTE.stone));
   const deep = texMat(stoneBlocks(PALETTE.stoneDeep));
@@ -541,8 +556,8 @@ function pebbleInterior(): InteriorDraft {
     g.rotation.y = yaw;
     group.add(g);
   };
-  shelf(-3.55, -0.4, Math.PI / 2);
-  shelf(3.55, -0.2, -Math.PI / 2);
+  shelf(-w / 2 + 0.85, -0.2, Math.PI / 2);
+  shelf(w / 2 - 0.85, 0.05, -Math.PI / 2);
   const desk = tbox(1.85, 0.12, 0.9, texMat(planks(PALETTE.wood)), -1.1, 0.72, -1.7);
   group.add(desk);
   for (const x of [-1.7, -0.5]) group.add(box(0.08, 0.7, 0.08, PALETTE.woodDeep, x, 0.35, -1.95));
@@ -574,7 +589,17 @@ function pebbleInterior(): InteriorDraft {
     group,
     spawn: new THREE.Vector3(0, 0, 0.9),
     interacts,
-    floor: { minX: -3.8, maxX: 3.8, minZ: -3.5, maxZ: 3.5 },
+    floor: { minX: -5.25, maxX: 5.25, minZ: -4.9, maxZ: 4.85 },
+    blockers: [
+      { x: -w / 2 + 0.85, z: -1.15, r: 0.72 },
+      { x: -w / 2 + 0.85, z: -0.2, r: 0.72 },
+      { x: -w / 2 + 0.85, z: 0.75, r: 0.72 },
+      { x: w / 2 - 0.85, z: -0.9, r: 0.72 },
+      { x: w / 2 - 0.85, z: 0.05, r: 0.72 },
+      { x: w / 2 - 0.85, z: 1.0, r: 0.72 },
+      { x: -1.1, z: -1.7, r: 0.95 },
+      { x: 1.55, z: 0.35, r: 0.85 },
+    ],
     shelfAnchors: [],
     decorRoot,
     npcAnchor,
@@ -583,8 +608,8 @@ function pebbleInterior(): InteriorDraft {
 
 function coralInterior(): InteriorDraft {
   const group = new THREE.Group();
-  const w = 8.4;
-  const d = 7.6;
+  const w = 11.2;
+  const d = 10.4;
   const wallH = 2.85;
   const plank = texMat(planks(0x3ecfcf));
   const wood = texMat(planks(PALETTE.wood));
@@ -641,7 +666,7 @@ function coralInterior(): InteriorDraft {
   perch.rotation.z = Math.PI / 2;
   perch.position.set(2.15, 1.55, -0.35);
   group.add(perch);
-  const npcAnchor = new THREE.Vector3(0.15, 0, -0.55);
+  const npcAnchor = new THREE.Vector3(1.85, 0, 0.55);
   addNpc(group, "coral", npcAnchor.x, npcAnchor.z, interacts, "Talk to Coral");
   const decorRoot = new THREE.Group();
   group.add(decorRoot);
@@ -650,7 +675,13 @@ function coralInterior(): InteriorDraft {
     group,
     spawn: new THREE.Vector3(0, 0, 1.05),
     interacts,
-    floor: { minX: -3.6, maxX: 3.6, minZ: -3.15, maxZ: 3.15 },
+    floor: { minX: -4.95, maxX: 4.95, minZ: -4.55, maxZ: 4.5 },
+    blockers: [
+      { x: 0, z: -1.55, r: 1.5 },
+      { x: 2.55, z: 1.5, r: 0.9 },
+      { x: -2.65, z: 1.35, r: 0.78 },
+      { x: 1.85, z: 0.55, r: 0.82 },
+    ],
     shelfAnchors: [],
     decorRoot,
     npcAnchor,
@@ -659,8 +690,8 @@ function coralInterior(): InteriorDraft {
 
 function brineInterior(): InteriorDraft {
   const group = new THREE.Group();
-  const w = 8.2;
-  const d = 9.4;
+  const w = 11.0;
+  const d = 12.2;
   const wallH = 3.05;
   const plank = texMat(planks(PALETTE.wood));
   const deep = texMat(planks(PALETTE.woodDeep));
@@ -730,7 +761,13 @@ function brineInterior(): InteriorDraft {
     group,
     spawn: new THREE.Vector3(0, 0, 1.2),
     interacts,
-    floor: { minX: -3.55, maxX: 3.55, minZ: -4.0, maxZ: 3.95 },
+    floor: { minX: -4.85, maxX: 4.85, minZ: -5.35, maxZ: 5.25 },
+    blockers: [
+      { x: -2.15, z: -0.35, r: 1.15 },
+      { x: 2.35, z: 0.85, r: 0.78 },
+      { x: 2.45, z: -1.55, r: 0.72 },
+      { x: 1.15, z: -1.15, r: 0.88 },
+    ],
     shelfAnchors: [],
     decorRoot,
     npcAnchor,

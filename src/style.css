@@ -854,6 +854,11 @@ html:not(.touch-on) .touch-pause {
   color: #16324a;
 }
 
+.touch-sprint {
+  background: linear-gradient(#ffe8c4, #f2c14e);
+  color: #6a3b08;
+}
+
 .touch-bag {
   background: linear-gradient(#fff, #f3e0c4);
 }

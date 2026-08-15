@@ -33,7 +33,7 @@ void main() {
   col += uSunColor * sun * 1.4;
   col += uSunColor * glow * 0.28 * (1.0 - uNight * 0.5);
 
-  float stars = step(0.9965, hash(floor(n * 140.0)));
+  float stars = step(0.9965, hash(floor(n * 140.0))) * smoothstep(0.06, 0.18, h);
   col += vec3(stars) * uNight;
 
   gl_FragColor = vec4(col, 1.0);
@@ -144,7 +144,7 @@ export class Sky {
     const sunset = THREE.MathUtils.clamp(1 - Math.abs(this.sunDir.y) * 3.2, 0, 1) * (1 - night);
     horizon.lerp(new THREE.Color("#ff8a5b"), sunset * 0.65);
     zenith.lerp(new THREE.Color("#f2c14e"), sunset * 0.15);
-    const nadir = new THREE.Color().lerpColors(new THREE.Color("#3a90d4"), new THREE.Color("#0a2038"), night);
+    const nadir = new THREE.Color().lerpColors(new THREE.Color("#1a5a88"), new THREE.Color("#071018"), night);
 
     this.material.uniforms.uZenith.value.copy(zenith);
     this.material.uniforms.uHorizon.value.copy(horizon);
