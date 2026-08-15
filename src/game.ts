@@ -361,8 +361,10 @@ export class Game {
       const polar = this.sailPolar();
       const fx = Math.sin(this.boatYaw);
       const fz = Math.cos(this.boatYaw);
-      const nx = this.boat.group.position.x + fx * this.boatSpeed * dt;
-      const nz = this.boat.group.position.z + fz * this.boatSpeed * dt;
+      // Tailwind is a bonus, never a gate — W/S always move the boat.
+      const windMul = 1 + Math.cos(this.angDelta(this.boatYaw, this.windYaw)) * 0.2;
+      const nx = this.boat.group.position.x + fx * this.boatSpeed * windMul * dt;
+      const nz = this.boat.group.position.z + fz * this.boatSpeed * windMul * dt;
       const bowX = nx + fx * 1.55;
       const bowZ = nz + fz * 1.55;
       if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.1, nz - fz * 1.1)) {
@@ -1196,7 +1198,7 @@ export class Game {
     const wind = $("hud-wind");
     if (wind) {
       wind.classList.toggle("hidden", !this.sailing);
-      if (this.sailing) wind.textContent = `Compass ${this.windArrow()} · tap`;
+      if (this.sailing) wind.textContent = `Compass ${this.windArrow()} ${this.windLabel()} · tap`;
     }
     $("touch-decor").classList.toggle("hidden", this.currentInterior?.id !== "home");
     if (this.bannerT > 0) {

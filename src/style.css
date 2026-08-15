@@ -342,6 +342,9 @@ html:not(.touch-on) .title-hint.touch {
   background: #e8f4ff;
   cursor: pointer;
   pointer-events: auto;
+  border: none;
+  font: inherit;
+  color: inherit;
 }
 
 .hud-prompt {
