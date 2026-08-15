@@ -223,6 +223,7 @@ export class Game {
     $("inventory").classList.toggle("hidden", s !== "inventory");
     $("shelf-picker").classList.toggle("hidden", s !== "shelf");
     $("sleep-overlay").classList.toggle("hidden", s !== "sleeping");
+    $("touch-hud").classList.toggle("hidden", s !== "world" && s !== "interior");
     if (s === "title") this.refreshContinue();
     if (s !== "inspect") this.inspect.hide();
   }
@@ -237,6 +238,7 @@ export class Game {
   };
 
   private update(dt: number) {
+    this.input.beginFrame();
     if (this.state === "title") {
       this.sky.update(0.32, dt);
       this.ocean.update(this.elapsed, this.sky.sunDir);
@@ -299,8 +301,9 @@ export class Game {
     }
 
     const mouse = this.input.mouseDelta();
-    this.camYaw -= mouse.x * 0.005;
-    this.camPitch = THREE.MathUtils.clamp(this.camPitch - mouse.y * 0.004, 0.12, 1.1);
+    const touchLook = document.documentElement.classList.contains("touch-on");
+    this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005);
+    this.camPitch = THREE.MathUtils.clamp(this.camPitch - mouse.y * (touchLook ? 0.0062 : 0.004), 0.12, 1.1);
     this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, 5, 22);
 
     this.spyglass = this.input.pressed("KeyF") && !this.currentInterior;
@@ -313,6 +316,7 @@ export class Game {
     this.updateCamera(dt);
     this.updateHud();
     this.gatherPrompt();
+    this.armTouchGo();
     if (this.input.consume("KeyE") && this.interact) this.interact();
     if (this.input.consumeClick()) this.onClick();
   }
@@ -1001,6 +1005,7 @@ export class Game {
       : (nearestIsland(this.eva.group.position.x, this.eva.group.position.z)?.name ?? "Open sea");
     $("hud-place").textContent = this.sailing ? `${isl} · sailing` : isl;
     $("hud-treats").textContent = `Treats ${this.save.treats}`;
+    $("touch-decor").classList.toggle("hidden", this.currentInterior?.id !== "home");
     if (this.bannerT > 0) {
       this.bannerT -= 0.016;
       if (this.bannerT <= 0) $("banner").classList.add("hidden");
@@ -1013,6 +1018,24 @@ export class Game {
     b.classList.toggle("found", kind === "found");
     b.classList.remove("hidden");
     this.bannerT = kind === "found" ? 2.1 : 3.2;
+  }
+
+  private armTouchGo() {
+    const go = $("touch-go");
+    if (!go) return;
+    go.classList.toggle("armed", !!this.interact);
+    const p = this.prompt;
+    let label = "Go";
+    if (/Pick up decoration/i.test(p)) label = "Take";
+    else if (/Arrange|treasure/i.test(p)) label = "Place";
+    else if (/Pick/i.test(p)) label = "Pick";
+    else if (/Dock/i.test(p)) label = "Dock";
+    else if (/Board/i.test(p)) label = "Sail";
+    else if (/Talk/i.test(p)) label = "Talk";
+    else if (/Enter/i.test(p)) label = "In";
+    else if (/Leave/i.test(p)) label = "Out";
+    else if (/Sleep/i.test(p)) label = "Sleep";
+    go.textContent = label;
   }
 
   persist() {

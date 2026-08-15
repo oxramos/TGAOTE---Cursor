@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>The Brave Adventures of Tibu-Eva</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='30' r='22' fill='%23FFE14A'/%3E%3Cellipse cx='32' cy='36' rx='6' ry='4' fill='%23FF8A3D'/%3E%3Ccircle cx='22' cy='32' r='4' fill='%23FF8BA7' opacity='.85'/%3E%3Ccircle cx='42' cy='32' r='4' fill='%23FF8BA7' opacity='.85'/%3E%3Cpath d='M18 26c4 2 8 2 12 0' stroke='%232a1a12' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M34 26c4 2 8 2 12 0' stroke='%232a1a12' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,7 +44,8 @@
             <button id="btn-new" class="btn primary">Set sail</button>
             <button id="btn-continue" class="btn" hidden>Continue</button>
           </div>
-          <p class="title-hint">WASD to move · Space to jump (hold to float) · Mouse to look · E to interact</p>
+          <p class="title-hint desktop">WASD to move · Space to jump (hold to float) · Mouse to look · E to interact</p>
+          <p class="title-hint touch">Stick to move · Jump (hold to float) · Go to interact · drag the sea to look</p>
         </div>
       </div>
 
@@ -47,12 +54,31 @@
           <div class="hud-chip" id="hud-day">Day 1 · Morning</div>
           <div class="hud-chip" id="hud-place">Home Isle</div>
           <div class="hud-chip treats" id="hud-treats">Treats 0</div>
+          <button type="button" id="touch-pause" class="touch-btn touch-pause" aria-label="Pause">❚❚</button>
         </div>
         <div id="hud-prompt" class="hud-prompt hidden"></div>
         <div id="banner" class="banner hidden"></div>
         <div class="hud-bottom">
           <div class="hud-help">
             E pick up · Space jump (hold to float) · F spyglass · Tab satchel · Q decorate at home · Esc pause
+          </div>
+        </div>
+        <div id="touch-hud" class="touch-hud">
+          <div id="touch-stick" class="touch-stick" aria-label="Move">
+            <div class="touch-stick-ring">
+              <div id="touch-stick-knob" class="touch-stick-knob"></div>
+            </div>
+          </div>
+          <div class="touch-cluster">
+            <div class="touch-row small">
+              <button type="button" id="touch-decor" class="touch-btn touch-decor hidden" aria-label="Decorate">Decor</button>
+              <button type="button" id="touch-bag" class="touch-btn touch-bag" aria-label="Satchel">Bag</button>
+              <button type="button" id="touch-look" class="touch-btn touch-look" aria-label="Spyglass">Look</button>
+            </div>
+            <div class="touch-row big">
+              <button type="button" id="touch-jump" class="touch-btn touch-jump" aria-label="Jump">Jump</button>
+              <button type="button" id="touch-go" class="touch-btn touch-go" aria-label="Interact">Go</button>
+            </div>
           </div>
         </div>
         <div id="spyglass-rim" class="hidden"></div>
