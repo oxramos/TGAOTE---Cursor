@@ -65,11 +65,11 @@ function rawHeight(isl: IslandDef, x: number, z: number): number {
   const n3 = fbm(x * 0.15, z * 0.15);
 
   // One continuous surface: a sandy skirt, then hills. No terrace lerp.
-  const beachT = isl.biome === "reef" ? 0.42 : isl.biome === "rocks" ? 0.14 : 0.2;
-  const lip = isl.biome === "reef" ? 0.42 : isl.biome === "rocks" ? 0.55 : 0.92;
+  const beachT = isl.biome === "reef" ? 0.4 : isl.biome === "rocks" ? 0.16 : 0.24;
+  const lip = isl.biome === "reef" ? 0.36 : isl.biome === "rocks" ? 0.4 : 0.48;
   if (t > 1 - beachT) {
     const b = (t - (1 - beachT)) / beachT;
-    const wet = 0.05 + 0.07 * n3;
+    const wet = 0.05 + 0.06 * n3;
     return THREE.MathUtils.lerp(lip, wet, THREE.MathUtils.smootherstep(0, 1, b));
   }
 
@@ -77,35 +77,34 @@ function rawHeight(isl: IslandDef, x: number, z: number): number {
 
   switch (isl.biome) {
     case "home": {
-      let h = lip + isl.height * Math.pow(u, 1.42);
-      h += 0.7 * Math.exp(-Math.pow((ang - 0.95) / 0.85, 2)) * Math.pow(u, 1.15);
-      h += 0.48 * Math.exp(-Math.pow((ang + 2.05) / 0.95, 2)) * Math.pow(u, 1.25);
-      h += (n2 - 0.5) * 0.32 * u;
+      let h = lip + isl.height * Math.pow(u, 1.1);
+      h += 1.05 * Math.exp(-Math.pow((ang - 0.95) / 0.85, 2)) * Math.pow(u, 1.05);
+      h += 0.7 * Math.exp(-Math.pow((ang + 2.05) / 0.95, 2)) * Math.pow(u, 1.12);
+      h += (n2 - 0.5) * 0.45 * u;
       return h;
     }
     case "meadow": {
-      const rolls = Math.sin(ang * 2 + n * 2.2) * 0.78 + Math.sin(d * 0.16 + ang) * 0.5;
-      return lip + isl.height * Math.pow(u, 1.22) * (0.55 + 0.45 * n) + rolls * Math.pow(u, 0.75);
+      const rolls = Math.sin(ang * 2 + n * 2.2) * 1.15 + Math.sin(d * 0.14 + ang) * 0.7;
+      return lip + isl.height * Math.pow(u, 1.08) * (0.55 + 0.45 * n) + rolls * Math.pow(u, 0.7);
     }
     case "stone": {
-      const spine = Math.pow(Math.abs(Math.cos(ang - 0.55)), 1.12);
-      const saddle = 0.4 + 0.6 * spine;
-      return lip + isl.height * Math.pow(u, 1.32) * saddle + (n - 0.5) * 0.5 * u;
+      const spine = 0.7 + 0.3 * Math.pow(Math.abs(Math.cos(ang - 0.55)), 1.35);
+      return lip + isl.height * Math.pow(u, 1.08) * spine + (n - 0.5) * 0.7 * u;
     }
     case "harbor": {
       const cove = Math.max(0, Math.cos(ang + 0.15));
-      const back = 1 - cove * 0.78;
-      return lip * (0.62 + 0.38 * (1 - cove)) + isl.height * Math.pow(u, 1.48) * back * (0.82 + 0.18 * n);
+      const back = 1 - cove * 0.7;
+      return lip * (0.55 + 0.45 * (1 - cove)) + isl.height * Math.pow(u, 1.12) * back * (0.82 + 0.18 * n);
     }
     case "palm": {
-      const dune = Math.max(0, Math.sin(ang * 2 + 0.45)) * 1.15 * Math.pow(Math.sin(Math.PI * u), 1.15);
-      return lip + isl.height * Math.pow(u, 1.38) * (0.42 + 0.28 * n) + dune;
+      const dune = Math.max(0, Math.sin(ang * 2 + 0.45)) * 1.65 * Math.pow(Math.sin(Math.PI * u), 1.05);
+      return lip + isl.height * Math.pow(u, 1.1) * (0.4 + 0.3 * n) + dune;
     }
     case "reef": {
-      return 0.1 + isl.height * Math.pow(u, 1.75) * (0.45 + 0.55 * n) + (n2 - 0.5) * 0.16;
+      return 0.1 + isl.height * Math.pow(u, 1.55) * (0.45 + 0.55 * n) + (n2 - 0.5) * 0.16;
     }
     case "rocks": {
-      return 0.18 + isl.height * Math.pow(u, 1.5) + (n - 0.5) * 0.55 * u;
+      return 0.16 + isl.height * Math.pow(u, 1.25) + (n - 0.5) * 0.65 * u;
     }
   }
   return lip;
@@ -246,24 +245,27 @@ function makeIslandMesh(isl: IslandDef): THREE.Mesh {
       const hx = islandHeight(isl, x + 0.55, z);
       const hz = islandHeight(isl, x, z + 0.55);
       const slope = Math.hypot(hx - y, hz - y) / 0.55;
-      const coastAmt = THREE.MathUtils.smoothstep(0.58, 0.96, tt);
-      const lowAmt = THREE.MathUtils.smoothstep(1.35, 0.38, y);
-      let sandAmt = THREE.MathUtils.clamp(coastAmt * 0.92 + lowAmt * 0.55, 0, 1);
-      const rockAmt = THREE.MathUtils.smoothstep(0.38, 0.85, slope);
+      const coastAmt = THREE.MathUtils.smoothstep(0.78, 0.98, tt);
+      const lowAmt = THREE.MathUtils.smoothstep(0.62, 0.16, y);
+      let sandAmt = THREE.MathUtils.clamp(coastAmt * 0.95 + lowAmt * 0.3, 0, 1);
+      const rockAmt = THREE.MathUtils.smoothstep(0.42, 0.95, slope);
       if (isl.biome === "stone") {
-        col.copy(rock).lerp(grass, THREE.MathUtils.clamp(1 - rockAmt * 0.75 - sandAmt * 0.5, 0, 1));
-        col.lerp(sand, sandAmt * 0.55);
+        col.copy(grass).lerp(rock, THREE.MathUtils.clamp(rockAmt * 0.7 + tt * 0.15, 0, 1));
+        col.lerp(sand, sandAmt);
       } else if (isl.biome === "rocks") {
         col.copy(rock).lerp(sand, sandAmt);
       } else if (isl.biome === "harbor") {
-        col.copy(dirt).lerp(sand, 0.4 + sandAmt * 0.45);
-        col.lerp(grass, (1 - sandAmt) * 0.28 * (1 - rockAmt));
+        col.copy(dirt).lerp(sand, sandAmt * 0.75);
+        col.lerp(grass, (1 - sandAmt) * 0.5 * (1 - rockAmt));
       } else if (isl.biome === "reef") {
-        col.copy(sand).lerp(moss, (1 - sandAmt) * 0.45);
+        col.copy(sand).lerp(moss, (1 - sandAmt) * 0.4);
+      } else if (isl.biome === "palm") {
+        col.copy(grass).lerp(sand, THREE.MathUtils.clamp(sandAmt + (1 - tt) * 0.12, 0, 1));
+        col.lerp(dirt, rockAmt * 0.35);
       } else {
-        col.copy(grass).lerp(tip, (fbm(x * 0.12, z * 0.12) * 0.35) * (1 - sandAmt));
+        col.copy(grass).lerp(tip, fbm(x * 0.12, z * 0.12) * 0.28 * (1 - sandAmt));
         col.lerp(sand, sandAmt);
-        col.lerp(dirt, rockAmt * (1 - sandAmt) * 0.55);
+        col.lerp(dirt, rockAmt * (1 - sandAmt) * 0.4);
       }
       col.offsetHSL(0, 0, (fbm(x * 0.2, z * 0.2) - 0.5) * 0.08);
       colors.push(col.r, col.g, col.b);
