@@ -338,6 +338,10 @@ html:not(.touch-on) .title-hint.touch {
   background: #fff3d6;
 }
 
+.hud-chip.wind {
+  background: #e8f4ff;
+}
+
 .hud-prompt {
   position: absolute;
   left: 50%;

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { PALETTE, toon, outlineClone } from "../materials";
+import type { Rarity } from "../types";
 
 function heartShape(s = 1): THREE.Shape {
   const sh = new THREE.Shape();
@@ -117,6 +118,8 @@ export class Eva {
   bob = 0;
   holdingGlass = false;
   pickupT = 0;
+  pickupDur = 0.48;
+  pickupKind: Rarity = "common";
 
   constructor() {
     this.body = new THREE.Group();
@@ -300,8 +303,10 @@ export class Eva {
     this.group.add(blob);
   }
 
-  playPickup() {
-    this.pickupT = 0.48;
+  playPickup(rarity: Rarity = "common") {
+    this.pickupKind = rarity;
+    this.pickupDur = rarity === "legendary" ? 1.12 : rarity === "rare" ? 0.84 : rarity === "uncommon" ? 0.62 : 0.46;
+    this.pickupT = this.pickupDur;
   }
 
   update(
@@ -325,15 +330,55 @@ export class Eva {
 
     if (this.pickupT > 0) {
       this.pickupT = Math.max(0, this.pickupT - dt);
-      const u = 1 - this.pickupT / 0.48;
-      const squash = Math.sin(u * Math.PI);
-      this.body.scale.set(1 + squash * 0.12, 1 - squash * 0.1, 1 + squash * 0.08);
-      this.body.rotation.z = Math.sin(u * Math.PI) * 0.18;
-      this.leftWing.rotation.z = 0.2 + squash * 1.15;
-      this.rightWing.rotation.z = -0.2 - squash * 0.35;
-      this.leftWing.rotation.x = -squash * 0.6;
+      const u = 1 - this.pickupT / this.pickupDur;
+      const pulse = Math.sin(u * Math.PI);
+      const kind = this.pickupKind;
+      if (kind === "legendary") {
+        this.body.scale.set(1 + pulse * 0.16, 1 + pulse * 0.08, 1 + pulse * 0.16);
+        this.body.position.y = 0.26 + pulse * 0.28;
+        this.body.rotation.y = Math.sin(u * Math.PI * 2) * 0.7;
+        this.body.rotation.z = Math.sin(u * Math.PI * 2) * 0.12;
+        this.body.rotation.x = -0.12 * pulse;
+        const flap = 0.9 + pulse * 0.85;
+        this.leftWing.rotation.z = flap;
+        this.rightWing.rotation.z = -flap;
+        this.leftWing.rotation.x = -0.7 * pulse;
+        this.rightWing.rotation.x = -0.7 * pulse;
+        this.tiara.rotation.z = Math.sin(u * 18) * 0.18;
+      } else if (kind === "rare") {
+        this.body.scale.set(1 + pulse * 0.1, 1 + pulse * 0.06, 1 + pulse * 0.1);
+        this.body.position.y = 0.26 + pulse * 0.14;
+        this.body.rotation.x = -0.22 * pulse;
+        this.body.rotation.z = Math.sin(u * Math.PI) * 0.08;
+        this.body.rotation.y = 0;
+        this.leftWing.rotation.z = 0.35 + pulse * 1.05;
+        this.rightWing.rotation.z = -0.35 - pulse * 1.05;
+        this.leftWing.rotation.x = -0.45 * pulse;
+        this.rightWing.rotation.x = -0.45 * pulse;
+      } else if (kind === "uncommon") {
+        this.body.scale.set(1 + pulse * 0.11, 1 - pulse * 0.06, 1 + pulse * 0.08);
+        this.body.position.y = 0.26 + pulse * 0.06;
+        this.body.rotation.z = Math.sin(u * Math.PI) * 0.16;
+        this.body.rotation.x = 0.12 * pulse;
+        this.body.rotation.y = 0;
+        this.leftWing.rotation.z = 0.25 + pulse * 1.05;
+        this.rightWing.rotation.z = -0.25 - pulse * 0.85;
+        this.leftWing.rotation.x = -pulse * 0.55;
+        this.rightWing.rotation.x = -pulse * 0.35;
+      } else {
+        this.body.scale.set(1 + pulse * 0.12, 1 - pulse * 0.1, 1 + pulse * 0.08);
+        this.body.position.y = 0.26;
+        this.body.rotation.z = pulse * 0.18;
+        this.body.rotation.x = 0.1 * pulse;
+        this.body.rotation.y = 0;
+        this.leftWing.rotation.z = 0.2 + pulse * 1.15;
+        this.rightWing.rotation.z = -0.2 - pulse * 0.35;
+        this.leftWing.rotation.x = -pulse * 0.6;
+        this.rightWing.rotation.x = -pulse * 0.25;
+      }
     } else {
       this.body.scale.set(1, 1, 1);
+      this.body.rotation.y = THREE.MathUtils.damp(this.body.rotation.y, 0, 8, dt);
       this.body.rotation.z = THREE.MathUtils.damp(this.body.rotation.z, bank + Math.sin(step * 0.5) * (run ? 0.05 : 0.02), 8, dt);
       this.body.rotation.x = THREE.MathUtils.damp(this.body.rotation.x, lean, 6, dt);
 

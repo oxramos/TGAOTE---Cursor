@@ -58,24 +58,51 @@ function tbox(w: number, h: number, d: number, mat: THREE.Material, x = 0, y = 0
   return m;
 }
 
-function windowView(): THREE.CanvasTexture {
+function windowView(kind: "home" | "meadow" | "stone" | "palm" | "harbor" = "home"): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 256;
   c.height = 256;
   const ctx = c.getContext("2d")!;
   const g = ctx.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, "#f7d7c4");
-  g.addColorStop(0.42, "#b8d7f0");
-  g.addColorStop(0.55, "#7ec8e8");
-  g.addColorStop(1, "#3a7ca5");
+  if (kind === "meadow") {
+    g.addColorStop(0, "#f8d5e8");
+    g.addColorStop(0.4, "#c5e4f4");
+    g.addColorStop(0.55, "#9ad48a");
+    g.addColorStop(1, "#6fbf6a");
+  } else if (kind === "stone") {
+    g.addColorStop(0, "#d7dde8");
+    g.addColorStop(0.45, "#9bb0c4");
+    g.addColorStop(0.6, "#7a8b6a");
+    g.addColorStop(1, "#5a6b4a");
+  } else if (kind === "palm") {
+    g.addColorStop(0, "#ffe2a8");
+    g.addColorStop(0.4, "#7ed6e8");
+    g.addColorStop(0.55, "#3ecfcf");
+    g.addColorStop(1, "#1a7ca5");
+  } else if (kind === "harbor") {
+    g.addColorStop(0, "#c9d8ea");
+    g.addColorStop(0.4, "#6a90b8");
+    g.addColorStop(0.55, "#2f5f8a");
+    g.addColorStop(1, "#1f3a5a");
+  } else {
+    g.addColorStop(0, "#f7d7c4");
+    g.addColorStop(0.42, "#b8d7f0");
+    g.addColorStop(0.55, "#7ec8e8");
+    g.addColorStop(1, "#3a7ca5");
+  }
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 256, 256);
   ctx.fillStyle = "rgba(255,246,234,0.55)";
   ctx.beginPath();
   ctx.ellipse(180, 70, 28, 28, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#6fbf6a";
-  ctx.fillRect(0, 150, 256, 40);
+  if (kind === "palm") {
+    ctx.fillStyle = "#2a9d6a";
+    ctx.fillRect(20, 140, 18, 90);
+    ctx.beginPath();
+    ctx.ellipse(28, 140, 36, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -83,75 +110,10 @@ function windowView(): THREE.CanvasTexture {
 
 export function buildInterior(kind: HouseKind): InteriorRoom {
   if (kind === "home") return homeInterior();
-
-  const pal = WALLS[kind];
-  const group = new THREE.Group();
-  const w = 10;
-  const d = 8;
-  const h = 4.2;
-  const floor = tbox(w, 0.12, d, texMat(planks(pal.floor)), 0, 0, 0);
-  group.add(floor);
-  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), toon(0xfff8ee));
-  ceiling.position.y = h;
-  group.add(ceiling);
-
-  const wallMat = toon(pal.wall);
-  wallMat.side = THREE.DoubleSide;
-  const back = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), wallMat);
-  back.position.set(0, h / 2, -d / 2);
-  const left = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, d), wallMat);
-  left.position.set(-w / 2, h / 2, 0);
-  const right = left.clone();
-  right.position.x = w / 2;
-  const front = back.clone();
-  front.position.z = d / 2;
-  group.add(back, left, right, front);
-
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshBasicMaterial({ map: windowView() }));
-  glass.position.set(-2.4, 2.3, -d / 2 + 0.1);
-  group.add(glass);
-  const glass2 = glass.clone();
-  glass2.position.x = 2.4;
-  group.add(glass2);
-
-  const lamp = new THREE.PointLight(0xffe0b0, 0.55, 16);
-  lamp.position.set(0, 3.2, 0);
-  group.add(lamp);
-  group.add(new THREE.HemisphereLight(0xfff1d6, 0x8a6a40, 1.1));
-  const fill = new THREE.DirectionalLight(0xfff1d6, 0.7);
-  fill.position.set(2, 5, 3);
-  group.add(fill);
-
-  const interacts: InteriorRoom["interacts"] = [];
-  const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, 0.08), toon(pal.trim));
-  door.position.set(0, 1.05, d / 2 - 0.12);
-  group.add(door);
-  interacts.push({ kind: { type: "exit" }, position: new THREE.Vector3(0, 0, d / 2 - 1.1), label: "Leave" });
-
-  const shelfAnchors: THREE.Object3D[] = [];
-  const decorRoot = new THREE.Group();
-  group.add(decorRoot);
-  const npcAnchor = new THREE.Vector3(2.6, 0, -1.2);
-
-  uniqueFurniture(kind, group);
-  const npcMesh = createNpc(kind === "mallow" ? "mallow" : kind === "pebble" ? "pebble" : kind === "coral" ? "coral" : "brine");
-  npcMesh.position.copy(npcAnchor);
-  npcMesh.rotation.y = Math.PI;
-  npcMesh.name = "interior-npc";
-  group.add(npcMesh);
-  const nid = kind as NpcId;
-  interacts.push({ kind: { type: "npc", id: nid }, position: npcAnchor.clone(), label: `Talk to ${kind}` });
-
-  return {
-    id: kind,
-    group,
-    spawn: new THREE.Vector3(0, 0, 0.2),
-    interacts,
-    floor: { minX: -4.4, maxX: 4.4, minZ: -3.4, maxZ: 3.4 },
-    shelfAnchors,
-    decorRoot,
-    npcAnchor,
-  };
+  if (kind === "mallow") return mallowInterior();
+  if (kind === "pebble") return pebbleInterior();
+  if (kind === "coral") return coralInterior();
+  return brineInterior();
 }
 
 function homeInterior(): InteriorRoom {
@@ -373,7 +335,7 @@ function homeInterior(): InteriorRoom {
   };
 }
 
-function prettyInWindow(parent: THREE.Group, x: number, y: number, z: number, view: THREE.Material, rotY = 0) {
+function prettyInWindow(parent: THREE.Group, x: number, y: number, z: number, view: THREE.Material, rotY = 0, trim = PALETTE.roof) {
   const root = new THREE.Group();
   root.position.set(x, y, z);
   root.rotation.y = rotY;
@@ -384,44 +346,364 @@ function prettyInWindow(parent: THREE.Group, x: number, y: number, z: number, vi
   root.add(glass);
   root.add(box(0.05, 1.12, 0.05, 0xfff1dc, 0, 0, 0.08));
   root.add(box(1.02, 0.05, 0.05, 0xfff1dc, 0, 0, 0.08));
-  root.add(box(1.35, 0.1, 0.16, PALETTE.roof, 0, -0.72, 0.04));
-  root.add(box(0.18, 1.28, 0.05, PALETTE.roof, -0.72, 0, 0.05));
-  root.add(box(0.18, 1.28, 0.05, PALETTE.roof, 0.72, 0, 0.05));
+  root.add(box(1.35, 0.1, 0.16, trim, 0, -0.72, 0.04));
+  root.add(box(0.18, 1.28, 0.05, trim, -0.72, 0, 0.05));
+  root.add(box(0.18, 1.28, 0.05, trim, 0.72, 0, 0.05));
   parent.add(root);
 }
 
-function uniqueFurniture(kind: HouseKind, group: THREE.Group) {
-  if (kind === "mallow") {
-    const kettle = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), toon(0xc0c8d0));
-    kettle.position.set(-2.5, 0.7, -1);
-    const table = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.6, 12), toon(PALETTE.wood));
-    table.position.set(-2.5, 0.3, -1);
-    const yarn = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), toon(0x7ec8e8));
-    yarn.position.set(2.4, 0.35, 1.2);
-    group.add(kettle, table, yarn);
+function roomLights(group: THREE.Group, color: number, y = 2.85) {
+  group.add(new THREE.HemisphereLight(0xfff1d6, 0x8a6a40, 1.05));
+  const lamp = new THREE.PointLight(color, 0.72, 14);
+  lamp.position.set(0, y, 0);
+  group.add(lamp);
+  const fill = new THREE.DirectionalLight(0xfff1d6, 0.5);
+  fill.position.set(2.2, 4.6, 2.4);
+  group.add(fill);
+}
+
+function addNpc(group: THREE.Group, id: NpcId, x: number, z: number, interacts: InteriorRoom["interacts"], label: string) {
+  const mesh = createNpc(id);
+  mesh.position.set(x, 0, z);
+  mesh.rotation.y = Math.PI;
+  mesh.name = "interior-npc";
+  group.add(mesh);
+  interacts.push({ kind: { type: "npc", id }, position: new THREE.Vector3(x, 0, z), label });
+}
+
+function yarnBall(color: number, x: number, y: number, z: number, s = 0.22) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8), toon(color));
+  m.position.set(x, y, z);
+  return m;
+}
+
+function bookStack(x: number, z: number, cols: number[]) {
+  const g = new THREE.Group();
+  cols.forEach((c, i) => {
+    const b = box(0.28 + (i % 2) * 0.06, 0.08, 0.38, c, 0, 0.08 + i * 0.09, 0);
+    g.add(b);
+  });
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function mallowInterior(): InteriorRoom {
+  const group = new THREE.Group();
+  const w = 8.6;
+  const d = 8.2;
+  const wallH = 3.05;
+  const wool = texMat(clapboard(0xfff0e8));
+  const floorM = texMat(planks(0xf4d7c8));
+  const view = new THREE.MeshBasicMaterial({ map: windowView("meadow") });
+  group.add(tbox(w, 0.14, d, floorM, 0, 0.02, 0));
+  group.add(tbox(w, wallH, 0.2, wool, 0, wallH / 2, -d / 2));
+  group.add(tbox(w, wallH, 0.2, wool, 0, wallH / 2, d / 2));
+  group.add(tbox(0.2, wallH, d, wool, -w / 2, wallH / 2, 0));
+  group.add(tbox(0.2, wallH, d, wool, w / 2, wallH / 2, 0));
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(5.4, 1.6, 16), texMat(shingles(0xf4c6d7)));
+  cap.position.y = wallH + 0.55;
+  group.add(cap);
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), toon(i % 2 ? 0xfff6ea : 0xffd6e6));
+    puff.position.set(Math.cos(a) * 3.9, 1.4 + (i % 3) * 0.55, Math.sin(a) * 3.6);
+    group.add(puff);
   }
-  if (kind === "pebble") {
-    const shelf = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 0.4), toon(PALETTE.woodDeep));
-    shelf.position.set(-3.2, 1.4, -1);
-    const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.4, 10), toon(0x88d4c4));
-    jar.position.set(2.2, 0.5, -1.5);
-    group.add(shelf, jar);
+  prettyInWindow(group, -1.7, 1.7, -d / 2 + 0.12, view, 0, 0xe56b9e);
+  prettyInWindow(group, 1.7, 1.7, -d / 2 + 0.12, view, 0, 0xe56b9e);
+  const round = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), view);
+  round.position.set(w / 2 - 0.12, 1.85, 0.2);
+  round.rotation.y = -Math.PI / 2;
+  group.add(round);
+  group.add(box(1.15, 2.05, 0.1, 0xe56b9e, 0, 1.05, d / 2 - 0.08));
+  const wreath = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.04, 6, 14), toon(0x7bc47a));
+  wreath.position.set(0, 1.55, d / 2 - 0.16);
+  group.add(wreath);
+  roomLights(group, 0xffc6d8);
+  const interacts: InteriorRoom["interacts"] = [];
+  interacts.push({ kind: { type: "exit" }, position: new THREE.Vector3(0, 0, d / 2 - 1.2), label: "Leave" });
+
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.9, 0.62, 14), toon(PALETTE.wood));
+  table.position.set(-2.15, 0.34, -0.9);
+  group.add(table);
+  const kettle = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), toon(0xc0c8d0));
+  kettle.position.set(-2.15, 0.82, -0.9);
+  group.add(kettle);
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.22, 6), toon(0xc0c8d0));
+  spout.rotation.z = 0.8;
+  spout.position.set(-1.95, 0.86, -0.9);
+  group.add(spout);
+  group.add(yarnBall(0x7ec8e8, 2.35, 0.28, 1.15, 0.28));
+  group.add(yarnBall(0xe56b9e, 2.65, 0.22, 1.45, 0.2));
+  group.add(yarnBall(0xfff6ea, 2.1, 0.2, 1.5, 0.16));
+  const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.28, 10), toon(PALETTE.wood));
+  basket.position.set(2.4, 0.18, 1.35);
+  group.add(basket);
+  const cushion = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), toon(0xf4c6d7));
+  cushion.scale.set(1.3, 0.35, 1.1);
+  cushion.position.set(-2.4, 0.22, 1.55);
+  group.add(cushion);
+  const cushion2 = cushion.clone();
+  cushion2.material = toon(0x7ec8e8);
+  cushion2.position.set(-1.85, 0.22, 1.85);
+  group.add(cushion2);
+  const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), toon(0xffd36a, { emissive: 0xffc14a }));
+  lantern.position.set(1.6, 2.35, -1.4);
+  group.add(lantern);
+  const needles = box(0.04, 0.55, 0.04, 0xc0c8d0, 2.55, 0.45, 1.2);
+  needles.rotation.z = 0.4;
+  group.add(needles);
+  const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.45, 0.04, 20), toon(0xe56b9e));
+  rug.position.set(0.1, 0.1, 0.2);
+  group.add(rug);
+  const npcAnchor = new THREE.Vector3(1.8, 0, -1.15);
+  addNpc(group, "mallow", npcAnchor.x, npcAnchor.z, interacts, "Talk to Mallow");
+  const decorRoot = new THREE.Group();
+  group.add(decorRoot);
+  return {
+    id: "mallow",
+    group,
+    spawn: new THREE.Vector3(0, 0, 0.85),
+    interacts,
+    floor: { minX: -3.7, maxX: 3.7, minZ: -3.4, maxZ: 3.4 },
+    shelfAnchors: [],
+    decorRoot,
+    npcAnchor,
+  };
+}
+
+function pebbleInterior(): InteriorRoom {
+  const group = new THREE.Group();
+  const w = 8.8;
+  const d = 8.4;
+  const wallH = 3.35;
+  const stone = texMat(stoneBlocks(PALETTE.stone));
+  const deep = texMat(stoneBlocks(PALETTE.stoneDeep));
+  const view = new THREE.MeshBasicMaterial({ map: windowView("stone") });
+  group.add(tbox(w, 0.16, d, deep, 0, 0.02, 0));
+  group.add(tbox(w, wallH, 0.22, stone, 0, wallH / 2, -d / 2));
+  group.add(tbox(w, wallH, 0.22, stone, 0, wallH / 2, d / 2));
+  group.add(tbox(0.22, wallH, d, stone, -w / 2, wallH / 2, 0));
+  group.add(tbox(0.22, wallH, d, stone, w / 2, wallH / 2, 0));
+  group.add(tbox(w + 0.3, 0.12, d + 0.3, texMat(shingles(0x5a6b4a)), 0, wallH + 0.06, 0));
+  prettyInWindow(group, -1.85, 2.05, -d / 2 + 0.14, view, 0, 0x5a6b4a);
+  prettyInWindow(group, 1.85, 2.05, -d / 2 + 0.14, view, 0, 0x5a6b4a);
+  group.add(box(1.2, 2.15, 0.12, PALETTE.woodDeep, 0, 1.1, d / 2 - 0.1));
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.08, 8, 12, Math.PI), deep);
+  arch.rotation.z = Math.PI;
+  arch.position.set(0, 2.05, d / 2 - 0.16);
+  group.add(arch);
+  roomLights(group, 0xc8e0b0, 3.05);
+  const interacts: InteriorRoom["interacts"] = [];
+  interacts.push({ kind: { type: "exit" }, position: new THREE.Vector3(0, 0, d / 2 - 1.2), label: "Leave" });
+
+  const shelf = (x: number, z: number, yaw: number) => {
+    const g = new THREE.Group();
+    g.add(tbox(2.6, 2.55, 0.28, texMat(planks(PALETTE.woodDeep)), 0, 1.4, 0));
+    const cols = [0x6fbf8a, 0xe23a3a, 0xf2c14e, 0x3a7ca5, 0xc45ad4, 0xfff6ea, 0x5a6b4a];
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 6; col++) {
+        g.add(box(0.14, 0.32, 0.08, cols[(row + col) % cols.length], -1.05 + col * 0.36, 0.55 + row * 0.52, 0.16));
+      }
+    }
+    g.position.set(x, 0, z);
+    g.rotation.y = yaw;
+    group.add(g);
+  };
+  shelf(-3.55, -0.4, Math.PI / 2);
+  shelf(3.55, -0.2, -Math.PI / 2);
+  const desk = tbox(1.85, 0.12, 0.9, texMat(planks(PALETTE.wood)), -1.1, 0.72, -1.7);
+  group.add(desk);
+  for (const x of [-1.7, -0.5]) group.add(box(0.08, 0.7, 0.08, PALETTE.woodDeep, x, 0.35, -1.95));
+  group.add(bookStack(-1.35, -1.55, [0x3a7ca5, 0xfff6ea, 0x6fbf8a]));
+  const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.32, 10), toon(0x88d4c4, { transparent: true, opacity: 0.7 }));
+  jar.position.set(-0.55, 0.95, -1.55);
+  group.add(jar);
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.09, 0), toon(0xc9c4b8));
+  rock.position.set(-0.55, 1.12, -1.55);
+  group.add(rock);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), toon(0x9ed96a, { emissive: 0x6fbf6a }));
+  lamp.position.set(-1.55, 1.02, -1.85);
+  group.add(lamp);
+  const moss = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), toon(PALETTE.grassDeep));
+  moss.scale.set(1.4, 0.35, 1.1);
+  moss.position.set(2.15, 0.22, 1.7);
+  group.add(moss);
+  group.add(bookStack(2.05, -1.85, [0xe23a3a, 0x5a6b4a, 0xf2c14e, 0x3a7ca5]));
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), toon(0x3a7ca5));
+  globe.position.set(1.85, 0.95, -1.7);
+  group.add(globe);
+  group.add(box(0.08, 0.7, 0.08, PALETTE.woodDeep, 1.85, 0.4, -1.7));
+  const npcAnchor = new THREE.Vector3(1.55, 0, 0.35);
+  addNpc(group, "pebble", npcAnchor.x, npcAnchor.z, interacts, "Talk to Pebble");
+  const decorRoot = new THREE.Group();
+  group.add(decorRoot);
+  return {
+    id: "pebble",
+    group,
+    spawn: new THREE.Vector3(0, 0, 0.9),
+    interacts,
+    floor: { minX: -3.8, maxX: 3.8, minZ: -3.5, maxZ: 3.5 },
+    shelfAnchors: [],
+    decorRoot,
+    npcAnchor,
+  };
+}
+
+function coralInterior(): InteriorRoom {
+  const group = new THREE.Group();
+  const w = 8.4;
+  const d = 7.6;
+  const wallH = 2.85;
+  const plank = texMat(planks(0x3ecfcf));
+  const wood = texMat(planks(PALETTE.wood));
+  const view = new THREE.MeshBasicMaterial({ map: windowView("palm") });
+  group.add(tbox(w, 0.12, d, wood, 0, 0.04, 0));
+  group.add(tbox(w, wallH, 0.16, plank, 0, wallH / 2, -d / 2));
+  group.add(tbox(0.16, wallH, d, plank, -w / 2, wallH / 2, 0));
+  group.add(tbox(0.16, wallH, d, plank, w / 2, wallH / 2, 0));
+  group.add(tbox(w, wallH, 0.16, plank, 0, wallH / 2, d / 2));
+  const thatch = new THREE.Mesh(new THREE.ConeGeometry(5.2, 1.55, 8), texMat(shingles(0xd4a44a)));
+  thatch.position.y = wallH + 0.5;
+  group.add(thatch);
+  prettyInWindow(group, -1.9, 1.65, -d / 2 + 0.12, view, 0, 0xe23a3a);
+  prettyInWindow(group, 1.9, 1.65, -d / 2 + 0.12, view, 0, 0xe23a3a);
+  group.add(box(1.35, 2.05, 0.1, 0xe23a3a, 0, 1.05, d / 2 - 0.08));
+  const awning = tbox(3.6, 0.08, 1.2, texMat(shingles(0xe23a3a)), 0, 2.55, 1.85);
+  awning.rotation.x = -0.22;
+  group.add(awning);
+  roomLights(group, 0xffc14a);
+  const interacts: InteriorRoom["interacts"] = [];
+  interacts.push({ kind: { type: "exit" }, position: new THREE.Vector3(0, 0, d / 2 - 1.15), label: "Leave" });
+
+  const counter = tbox(3.6, 0.92, 1.05, texMat(planks(0xe23a3a)), 0, 0.5, -1.55);
+  group.add(counter);
+  group.add(tbox(3.7, 0.08, 1.15, wood, 0, 0.98, -1.55));
+  const goods = [0xf2c14e, 0x7ec8e8, 0xff8ba7, 0x7bc47a, 0xe23a3a];
+  goods.forEach((c, i) => {
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), toon(c));
+    shell.scale.set(1, 0.45, 1.1);
+    shell.position.set(-1.2 + i * 0.6, 1.12, -1.45);
+    group.add(shell);
+  });
+  const crate = (x: number, z: number, c: number) => {
+    group.add(tbox(0.72, 0.55, 0.72, texMat(planks(c)), x, 0.32, z));
+  };
+  crate(2.55, 1.15, 0xf2c14e);
+  crate(2.55, 1.85, PALETTE.wood);
+  crate(-2.65, 1.35, 0xe23a3a);
+  const rug = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.04, 1.6), toon(0xe23a3a));
+  rug.position.set(-0.2, 0.1, 0.55);
+  group.add(rug);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.045, 0.22), toon(0xf2c14e));
+  stripe.position.set(-0.2, 0.12, 0.55);
+  group.add(stripe);
+  for (let i = 0; i < 5; i++) {
+    const hang = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), toon(goods[i]));
+    hang.position.set(-1.2 + i * 0.55, 2.15, -1.15);
+    group.add(hang);
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.35, 5), toon(PALETTE.woodDeep));
+    cord.position.set(-1.2 + i * 0.55, 2.38, -1.15);
+    group.add(cord);
   }
-  if (kind === "coral") {
-    const counter = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 1.1), toon(0xe23a3a));
-    counter.position.set(0, 0.45, -1.8);
-    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), toon(0xf2c14e));
-    crate.position.set(3, 0.3, 1);
-    group.add(counter, crate);
+  const perch = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 6), toon(PALETTE.woodDeep));
+  perch.rotation.z = Math.PI / 2;
+  perch.position.set(2.15, 1.55, -0.35);
+  group.add(perch);
+  const npcAnchor = new THREE.Vector3(0.15, 0, -0.55);
+  addNpc(group, "coral", npcAnchor.x, npcAnchor.z, interacts, "Talk to Coral");
+  const decorRoot = new THREE.Group();
+  group.add(decorRoot);
+  return {
+    id: "coral",
+    group,
+    spawn: new THREE.Vector3(0, 0, 1.05),
+    interacts,
+    floor: { minX: -3.6, maxX: 3.6, minZ: -3.15, maxZ: 3.15 },
+    shelfAnchors: [],
+    decorRoot,
+    npcAnchor,
+  };
+}
+
+function brineInterior(): InteriorRoom {
+  const group = new THREE.Group();
+  const w = 8.2;
+  const d = 9.4;
+  const wallH = 3.05;
+  const plank = texMat(planks(PALETTE.wood));
+  const deep = texMat(planks(PALETTE.woodDeep));
+  const view = new THREE.MeshBasicMaterial({ map: windowView("harbor") });
+  group.add(tbox(w, 0.14, d, deep, 0, 0.02, 0));
+  group.add(tbox(w, wallH, 0.18, plank, 0, wallH / 2, -d / 2));
+  group.add(tbox(w, wallH, 0.18, plank, 0, wallH / 2, d / 2));
+  group.add(tbox(0.18, wallH, d, plank, -w / 2, wallH / 2, 0));
+  group.add(tbox(0.18, wallH, d, plank, w / 2, wallH / 2, 0));
+  const roof = texMat(shingles(0x1f3a5a));
+  group.add(tbox(w + 0.4, 0.12, d + 0.3, roof, 0, wallH + 0.2, 0));
+  prettyInWindow(group, -1.7, 1.75, -d / 2 + 0.12, view, 0, 0x1f3a5a);
+  prettyInWindow(group, 1.7, 1.75, -d / 2 + 0.12, view, 0, 0x1f3a5a);
+  group.add(tbox(0.95, 2.05, 0.1, deep, -0.7, 1.05, d / 2 - 0.1));
+  const doorR = tbox(0.95, 2.05, 0.1, deep, 0.72, 1.05, d / 2 - 0.16);
+  doorR.rotation.y = -0.35;
+  group.add(doorR);
+  roomLights(group, 0xffb070, 2.7);
+  const interacts: InteriorRoom["interacts"] = [];
+  interacts.push({ kind: { type: "exit" }, position: new THREE.Vector3(0, 0, d / 2 - 1.25), label: "Leave" });
+
+  const hammock = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.06, 0.85), toon(0xf4e6c8));
+  hammock.position.set(-2.15, 1.15, -0.35);
+  hammock.rotation.z = 0.14;
+  group.add(hammock);
+  group.add(box(0.06, 1.15, 0.06, PALETTE.woodDeep, -3.15, 0.6, -0.35));
+  group.add(box(0.06, 1.35, 0.06, PALETTE.woodDeep, -1.15, 0.7, -0.35));
+  const chart = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 1.05), toon(0xf0d9b5));
+  chart.position.set(2.55, 1.95, -d / 2 + 0.2);
+  group.add(chart);
+  group.add(box(1.7, 0.06, 0.06, 0x1f3a5a, 2.55, 2.5, -d / 2 + 0.22));
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.05, 8, 16), toon(PALETTE.wood));
+  wheel.position.set(2.35, 1.35, 0.85);
+  group.add(wheel);
+  for (let i = 0; i < 6; i++) {
+    const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 5), toon(PALETTE.woodDeep));
+    spoke.rotation.z = (i / 6) * Math.PI;
+    spoke.position.copy(wheel.position);
+    group.add(spoke);
   }
-  if (kind === "brine") {
-    const hammock = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.9), toon(0xf4e6c8));
-    hammock.position.set(-2.4, 1.1, 0);
-    hammock.rotation.z = 0.12;
-    const map = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), toon(0xf0d9b5));
-    map.position.set(2.6, 2.2, -3.85);
-    group.add(hammock, map);
-  }
+  const coil = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.1, 8, 14), toon(PALETTE.wood));
+  coil.rotation.x = Math.PI / 2;
+  coil.position.set(-2.45, 0.22, 1.55);
+  group.add(coil);
+  const net = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 1.1, 5, 5),
+    new THREE.MeshBasicMaterial({ color: 0xdde8f0, wireframe: true, transparent: true, opacity: 0.7 }),
+  );
+  net.position.set(3.15, 1.45, 1.55);
+  net.rotation.y = -0.4;
+  group.add(net);
+  const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), toon(0xffd36a, { emissive: 0xffc14a }));
+  lantern.position.set(-2.4, 2.25, 1.8);
+  group.add(lantern);
+  const crate = tbox(0.85, 0.5, 0.7, texMat(planks(PALETTE.wood)), 2.45, 0.3, -1.55);
+  group.add(crate);
+  group.add(box(0.22, 0.16, 0.22, 0xfff6ea, 2.45, 0.62, -1.55));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 8, 14), toon(0xe23a3a));
+  ring.position.set(-3.15, 1.35, 2.15);
+  group.add(ring);
+  const npcAnchor = new THREE.Vector3(1.15, 0, -1.15);
+  addNpc(group, "brine", npcAnchor.x, npcAnchor.z, interacts, "Talk to Captain Brine");
+  const decorRoot = new THREE.Group();
+  group.add(decorRoot);
+  return {
+    id: "brine",
+    group,
+    spawn: new THREE.Vector3(0, 0, 1.2),
+    interacts,
+    floor: { minX: -3.55, maxX: 3.55, minZ: -4.0, maxZ: 3.95 },
+    shelfAnchors: [],
+    decorRoot,
+    npcAnchor,
+  };
 }
 
 export function fillShelf(room: InteriorRoom, displayed: (string | null)[]) {

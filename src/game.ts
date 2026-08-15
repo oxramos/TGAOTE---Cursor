@@ -18,7 +18,7 @@ import { AudioBed } from "./audio";
 import { freshSave, loadSave, writeSave } from "./save";
 import { glowSprite, toon } from "./materials";
 import { ITEMS, ISLANDS, NPCS, SLEEP_LINES } from "./catalog";
-import type { GameState, NpcId, SaveData, TradeRecipe } from "./types";
+import type { GameState, NpcId, Rarity, SaveData, TradeRecipe } from "./types";
 import type { HouseKind } from "./models/houses";
 import type { HouseAnchor } from "./world/islands";
 
@@ -57,6 +57,10 @@ export class Game {
   sailing = false;
   boatSpeed = 0;
   boatYaw = -0.6;
+  private sailAmount = 0.45;
+  private windYaw = 0.7;
+  private windSpeed = 6.4;
+  private sailedHint = false;
   spyglass = false;
   decorate = false;
   talkingTo: NpcId | null = null;
@@ -72,7 +76,7 @@ export class Game {
   private moveFwd = new THREE.Vector3();
   private moveRight = new THREE.Vector3();
   private moveUp = new THREE.Vector3(0, 1, 0);
-  private flyLoot: { mesh: THREE.Group; origin: THREE.Vector3; t: number }[] = [];
+  private flyLoot: { mesh: THREE.Group; origin: THREE.Vector3; t: number; rarity: Rarity; color: number }[] = [];
   private sparkles: { sprite: THREE.Sprite; life: number }[] = [];
   private evaVy = 0;
   private grounded = true;
@@ -306,10 +310,12 @@ export class Game {
 
     const mouse = this.input.mouseDelta();
     const touchLook = document.documentElement.classList.contains("touch-on");
-    this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005);
-    this.camPitch = THREE.MathUtils.clamp(this.camPitch - mouse.y * (touchLook ? 0.0062 : 0.004), 0.12, 1.1);
-    const minZoom = this.currentInterior ? 2.6 : 5;
-    const maxZoom = this.currentInterior ? 4.6 : 22;
+    const inside = !!this.currentInterior;
+    const lookMul = inside ? 1.55 : 1;
+    this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005) * lookMul;
+    this.camPitch = THREE.MathUtils.clamp(this.camPitch - mouse.y * (touchLook ? 0.0062 : 0.004) * lookMul, 0.1, 1.15);
+    const minZoom = inside ? 2.1 : 5;
+    const maxZoom = inside ? 5.4 : 22;
     this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, minZoom, maxZoom);
 
     this.spyglass = this.input.pressed("KeyF") && !this.currentInterior;
@@ -339,32 +345,44 @@ export class Game {
   private updateWorld(dt: number) {
     const night = this.isNight();
     this.npcs.forEach((mesh) => (mesh.visible = !night));
+    this.updateWind();
 
     if (this.sailing) {
       const axis = this.input.moveAxis();
-      this.boatYaw -= axis.x * dt * 1.7;
-      const accel = axis.z < 0 ? 7.5 : axis.z > 0 ? -4 : -1.8;
-      this.boatSpeed = THREE.MathUtils.clamp(this.boatSpeed + accel * dt, -2, 11);
+      // Stick / W = haul sail (go). S = douse. A/D = helm.
+      if (axis.z < -0.08) this.sailAmount = Math.min(1, this.sailAmount + (-axis.z) * dt * 0.95);
+      else if (axis.z > 0.08) this.sailAmount = Math.max(0, this.sailAmount - axis.z * dt * 1.15);
+      const polar = this.sailPolar();
+      const helm = 1.05 + (1 - this.sailAmount) * 0.55;
+      this.boatYaw -= axis.x * dt * helm;
+      const drive = this.sailAmount * this.windSpeed * polar * 1.15;
+      const target = this.sailAmount < 0.12 ? 0.6 : 1.05 + drive;
+      this.boatSpeed = THREE.MathUtils.damp(this.boatSpeed, target, 1.6, dt);
       const fx = Math.sin(this.boatYaw);
       const fz = Math.cos(this.boatYaw);
       const nx = this.boat.group.position.x + fx * this.boatSpeed * dt;
       const nz = this.boat.group.position.z + fz * this.boatSpeed * dt;
-      const bowX = nx + fx * 1.55;
-      const bowZ = nz + fz * 1.55;
-      if (isLand(nx, nz) || isLand(bowX, bowZ) || isLand(nx - fx * 1.1, nz - fz * 1.1)) {
+      const wind = this.windVec();
+      const slip = (1 - polar) * this.sailAmount * 0.9 * dt;
+      const sx = nx + wind.x * slip;
+      const sz = nz + wind.z * slip;
+      const bowX = sx + fx * 1.55;
+      const bowZ = sz + fz * 1.55;
+      if (isLand(sx, sz) || isLand(bowX, bowZ) || isLand(sx - fx * 1.1, sz - fz * 1.1)) {
         this.boatSpeed *= 0.35;
         const safe = pushToWater(this.boat.group.position.x, this.boat.group.position.z);
         this.boat.group.position.x = safe.x;
         this.boat.group.position.z = safe.z;
       } else {
-        this.boat.group.position.x = nx;
-        this.boat.group.position.z = nz;
+        this.boat.group.position.x = sx;
+        this.boat.group.position.z = sz;
       }
       this.floatBoat();
+      const heel = Math.sin(this.angDelta(this.windYaw, this.boatYaw)) * this.sailAmount * polar * 0.14;
       this.boat.group.rotation.y = this.boatYaw;
-      this.boat.group.rotation.z = Math.sin(this.elapsed * 1.4) * 0.05;
-      this.boat.group.rotation.x = Math.cos(this.elapsed * 1.1) * 0.04;
-      this.boat.update(this.elapsed, this.boatSpeed);
+      this.boat.group.rotation.z = Math.sin(this.elapsed * 1.4) * 0.04 + heel;
+      this.boat.group.rotation.x = Math.cos(this.elapsed * 1.1) * 0.035;
+      this.boat.update(this.elapsed, this.boatSpeed, this.sailAmount, this.windYaw, this.boatYaw, polar);
       this.eva.group.position.set(this.boat.group.position.x, this.boat.group.position.y + 0.62, this.boat.group.position.z);
       this.eva.group.rotation.y = this.boatYaw;
       this.grounded = true;
@@ -376,7 +394,7 @@ export class Game {
       this.walk(dt, true);
       this.applyHop(dt, true);
       this.floatBoat();
-      this.boat.update(this.elapsed, 0.2);
+      this.boat.update(this.elapsed, 0.2, 0.18, this.windYaw, this.boatYaw, 0.3);
       this.updateMooring();
     }
 
@@ -514,40 +532,91 @@ export class Game {
 
   private updateCamera(dt: number, snap = false) {
     const inside = !!this.currentInterior;
-    const targetFov = this.spyglass ? 26 : inside ? 52 : this.sailing ? 50 : 48;
+    const targetFov = this.spyglass ? 26 : inside ? 50 : this.sailing ? 50 : 48;
     this.fov = snap ? targetFov : THREE.MathUtils.lerp(this.fov, targetFov, 1 - Math.pow(0.01, dt));
     this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();
     const dist = inside
-      ? THREE.MathUtils.clamp(this.camDist, 2.6, 4.6)
+      ? THREE.MathUtils.clamp(this.camDist, 2.1, 5.4)
       : this.sailing
         ? this.camDist + 3
         : this.camDist;
-    const pitch = inside ? THREE.MathUtils.clamp(this.camPitch, 0.42, 1.02) : this.camPitch;
+    const pitch = inside ? THREE.MathUtils.clamp(this.camPitch, 0.16, 1.05) : this.camPitch;
     const t = this.eva.group.position;
-    const lookY = inside ? 0.82 : 1.15;
+    const lookY = inside ? 0.92 : 1.15;
     const look = new THREE.Vector3(t.x, t.y + lookY, t.z);
     const ox = Math.sin(this.camYaw) * Math.cos(pitch) * dist;
     const oy = Math.sin(pitch) * dist;
     const oz = Math.cos(this.camYaw) * Math.cos(pitch) * dist;
     const desired = new THREE.Vector3(look.x - ox, look.y + oy, look.z - oz);
-    if (inside) this.keepCamInRoom(desired);
+    if (inside) this.keepCamInRoom(desired, look);
+    const follow = snap ? 1 : inside ? 1 - Math.pow(0.0007, dt) : 1 - Math.pow(0.02, dt);
     if (snap) this.camera.position.copy(desired);
-    else this.camera.position.lerp(desired, 1 - Math.pow(0.02, dt));
-    if (inside) this.keepCamInRoom(this.camera.position);
+    else this.camera.position.lerp(desired, follow);
+    if (inside) this.keepCamInRoom(this.camera.position, look);
     this.camera.lookAt(look);
     this.sky.dir.target.position.copy(t);
     this.sky.dir.target.updateMatrixWorld();
     this.sky.dir.position.copy(t).add(this.sky.sunDir.clone().multiplyScalar(70));
   }
 
-  private keepCamInRoom(p: THREE.Vector3) {
+  private keepCamInRoom(p: THREE.Vector3, look: THREE.Vector3) {
     const f = this.currentInterior?.floor;
     if (!f) return;
-    const pad = 0.72;
+    const pad = 0.42;
+    const ok = (q: THREE.Vector3) =>
+      q.x >= f.minX + pad && q.x <= f.maxX - pad && q.z >= f.minZ + pad && q.z <= f.maxZ - pad && q.y >= 0.95 && q.y <= 3.55;
+    p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
+    if (ok(p)) return;
+    for (let i = 0; i < 12; i++) {
+      p.lerp(look, 0.14);
+      p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
+      if (ok(p)) return;
+    }
     p.x = THREE.MathUtils.clamp(p.x, f.minX + pad, f.maxX - pad);
     p.z = THREE.MathUtils.clamp(p.z, f.minZ + pad, f.maxZ - pad);
-    p.y = THREE.MathUtils.clamp(p.y, 1.25, 3.25);
+    p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
+  }
+
+  private updateWind() {
+    const t = this.elapsed;
+    this.windYaw = 0.55 + Math.sin(t * 0.027) * 0.95 + Math.sin(t * 0.011 + 1.2) * 1.25;
+    this.windSpeed = 6.2 + Math.sin(t * 0.041) * 1.7 + Math.sin(t * 0.013) * 0.7;
+  }
+
+  private windVec() {
+    return { x: Math.sin(this.windYaw), z: Math.cos(this.windYaw) };
+  }
+
+  private angDelta(a: number, b: number) {
+    let d = a - b;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return d;
+  }
+
+  private sailPolar() {
+    const angle = Math.abs(this.angDelta(this.boatYaw, this.windYaw));
+    if (angle < 0.42) return 0.78;
+    if (angle < 1.15) return 1;
+    if (angle < 1.85) return 0.62;
+    if (angle < 2.35) return 0.22;
+    return 0.08;
+  }
+
+  private windLabel() {
+    const a = Math.abs(this.angDelta(this.boatYaw, this.windYaw));
+    if (a < 0.5) return "tailwind";
+    if (a < 1.2) return "reaching";
+    if (a < 1.9) return "close";
+    return "luffing";
+  }
+
+  private windArrow() {
+    const ref = this.sailing ? this.boatYaw : this.camYaw;
+    const d = this.angDelta(this.windYaw, ref);
+    const step = Math.round(((d + Math.PI) / (Math.PI * 2)) * 8) % 8;
+    return ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"][step] ?? "↑";
   }
 
   private gatherPrompt() {
@@ -616,8 +685,17 @@ export class Game {
     if (!this.sailing && boatD < 4.2) {
       consider("E — Board the red boat", () => {
         this.sailing = true;
-        this.boatSpeed = 0;
+        this.sailAmount = 0.55;
+        this.boatSpeed = 2.2;
+        this.camYaw = this.boatYaw;
+        this.camPitch = 0.3;
+        this.camDist = Math.max(this.camDist, 13);
+        this.updateCamera(1, true);
         this.audio.chime("ui");
+        if (!this.sailedHint) {
+          this.sailedHint = true;
+          this.toast("Haul sail with W to catch the wind. Steer with A and D.");
+        }
       });
     }
 
@@ -673,8 +751,8 @@ export class Game {
     }
     this.renderPass.scene = this.interiorScene;
     this.worldCam = { yaw: this.camYaw, pitch: this.camPitch, dist: this.camDist };
-    this.camDist = 3.45;
-    this.camPitch = 0.68;
+    this.camDist = 3.15;
+    this.camPitch = 0.42;
     this.camYaw = 0;
     this.setState("interior");
     this.updateCamera(1, true);
@@ -870,26 +948,69 @@ export class Game {
     this.save.items[p.item] = (this.save.items[p.item] ?? 0) + 1;
     const def = ITEMS[p.item];
     this.audio.chime(def.rarity);
-    this.eva.playPickup();
-    this.flyLoot.push({ mesh: p.mesh, origin: p.mesh.position.clone(), t: 0 });
-    this.burstSparkles(p.mesh.position);
-    this.toast(`Found ${def.name}!`, "found");
+    this.eva.playPickup(def.rarity);
+    this.flyLoot.push({
+      mesh: p.mesh,
+      origin: p.mesh.position.clone(),
+      t: 0,
+      rarity: def.rarity,
+      color: def.glow ?? def.color,
+    });
+    this.burstSparkles(p.mesh.position, def.rarity, def.glow ?? def.color);
+    const toast =
+      def.rarity === "legendary"
+        ? `A legend — ${def.name}!`
+        : def.rarity === "rare"
+          ? `Oh! ${def.name}!`
+          : def.rarity === "uncommon"
+            ? `Found ${def.name}!`
+            : `Picked up ${def.name}`;
+    this.toast(toast, "found");
   }
 
   private updateLootFly(dt: number) {
-    const hands = this.eva.group.position;
+    const eva = this.eva.group;
+    const fwd = new THREE.Vector3(Math.sin(eva.rotation.y), 0, Math.cos(eva.rotation.y));
     for (let i = this.flyLoot.length - 1; i >= 0; i--) {
       const f = this.flyLoot[i];
       f.t += dt;
-      const u = Math.min(1, f.t / 0.5);
-      const e = 1 - (1 - u) * (1 - u) * (1 - u);
-      f.mesh.position.lerpVectors(f.origin, hands, e);
-      f.mesh.position.y += 0.7 * e + Math.sin(u * Math.PI) * 0.85;
-      f.mesh.scale.setScalar(1 - e * 0.88);
-      f.mesh.rotation.y += dt * 10;
+      const dur = f.rarity === "legendary" ? 1.08 : f.rarity === "rare" ? 0.86 : f.rarity === "uncommon" ? 0.6 : 0.42;
+      const u = Math.min(1, f.t / dur);
+      const hands = eva.position.clone().add(fwd.clone().multiplyScalar(0.42));
+      hands.y += f.rarity === "legendary" || f.rarity === "rare" ? 0.95 : 0.55;
+      const bag = eva.position.clone();
+      bag.y += 0.42;
+      if (f.rarity === "rare" || f.rarity === "legendary") {
+        if (u < 0.42) {
+          const e = 1 - Math.pow(1 - u / 0.42, 3);
+          f.mesh.position.lerpVectors(f.origin, hands, e);
+          f.mesh.position.y += Math.sin(e * Math.PI) * (f.rarity === "legendary" ? 1.15 : 0.7);
+          f.mesh.scale.setScalar(1 + e * (f.rarity === "legendary" ? 0.45 : 0.22));
+        } else if (u < 0.72) {
+          const spin = (u - 0.42) / 0.3;
+          f.mesh.position.copy(hands);
+          f.mesh.position.y += Math.sin(this.elapsed * 8) * 0.04;
+          f.mesh.scale.setScalar(1.15 + Math.sin(spin * Math.PI) * 0.12);
+          if (f.rarity === "legendary") f.mesh.rotation.z = Math.sin(this.elapsed * 6) * 0.25;
+        } else {
+          const e = (u - 0.72) / 0.28;
+          f.mesh.position.lerpVectors(hands, bag, e);
+          f.mesh.scale.setScalar((1.2) * (1 - e * 0.95));
+        }
+        f.mesh.rotation.y += dt * (f.rarity === "legendary" ? 14 : 9);
+      } else {
+        const e = 1 - Math.pow(1 - u, 3);
+        const peak = f.rarity === "uncommon" ? 1.05 : 0.7;
+        f.mesh.position.lerpVectors(f.origin, bag, e);
+        f.mesh.position.y += Math.sin(u * Math.PI) * peak;
+        f.mesh.scale.setScalar(1 - e * 0.9);
+        f.mesh.rotation.y += dt * (f.rarity === "uncommon" ? 12 : 8);
+        if (f.rarity === "uncommon") f.mesh.rotation.z = Math.sin(u * Math.PI * 2) * 0.4;
+      }
       if (u >= 1) {
         f.mesh.visible = false;
         f.mesh.scale.setScalar(1);
+        f.mesh.rotation.set(0, 0, 0);
         this.flyLoot.splice(i, 1);
       }
     }
@@ -907,12 +1028,15 @@ export class Game {
     }
   }
 
-  private burstSparkles(at: THREE.Vector3) {
-    for (let i = 0; i < 8; i++) {
-      const sprite = glowSprite(0xfff1a8, 0.45);
-      sprite.position.set(at.x + (Math.random() - 0.5) * 0.4, at.y + 0.2, at.z + (Math.random() - 0.5) * 0.4);
+  private burstSparkles(at: THREE.Vector3, rarity: Rarity = "common", color = 0xfff1a8) {
+    const n = rarity === "legendary" ? 28 : rarity === "rare" ? 18 : rarity === "uncommon" ? 12 : 7;
+    const size = rarity === "legendary" ? 0.7 : rarity === "rare" ? 0.55 : 0.42;
+    for (let i = 0; i < n; i++) {
+      const sprite = glowSprite(i % 3 === 0 ? 0xfff1a8 : color, size);
+      const spread = rarity === "legendary" ? 0.85 : 0.45;
+      sprite.position.set(at.x + (Math.random() - 0.5) * spread, at.y + 0.2, at.z + (Math.random() - 0.5) * spread);
       this.world.add(sprite);
-      this.sparkles.push({ sprite, life: 0.45 + Math.random() * 0.2 });
+      this.sparkles.push({ sprite, life: 0.4 + Math.random() * 0.35 + (rarity === "legendary" ? 0.35 : 0) });
     }
   }
 
@@ -1064,8 +1188,13 @@ export class Game {
     const isl = this.currentInterior
       ? this.houseLabel(this.currentInterior.id)
       : (nearestIsland(this.eva.group.position.x, this.eva.group.position.z)?.name ?? "Open sea");
-    $("hud-place").textContent = this.sailing ? `${isl} · sailing` : isl;
+    $("hud-place").textContent = this.sailing ? `${isl} · ${this.sailName()}` : isl;
     $("hud-treats").textContent = `Treats ${this.save.treats}`;
+    const wind = $("hud-wind");
+    if (wind) {
+      wind.classList.toggle("hidden", !this.sailing);
+      if (this.sailing) wind.textContent = `Wind ${this.windArrow()} ${this.windLabel()}`;
+    }
     $("touch-decor").classList.toggle("hidden", this.currentInterior?.id !== "home");
     if (this.bannerT > 0) {
       this.bannerT -= 0.016;
@@ -1097,6 +1226,13 @@ export class Game {
     else if (/Leave/i.test(p)) label = "Out";
     else if (/Sleep/i.test(p)) label = "Sleep";
     go.textContent = label;
+  }
+
+  private sailName() {
+    if (this.sailAmount < 0.2) return "reefed";
+    if (this.sailPolar() < 0.2) return "luffing";
+    if (this.sailAmount > 0.8) return "full sail";
+    return "sailing";
   }
 
   persist() {
@@ -1164,6 +1300,7 @@ export class Game {
     }
     if (name === "sea") {
       this.sailing = true;
+      this.sailAmount = 0.8;
       this.boat.group.position.set(72, 0.2, 30);
       this.boatYaw = 0.8;
       this.camYaw = 0.8;
@@ -1194,8 +1331,8 @@ export class Game {
       fillShelf(this.currentInterior!, this.save.displayed);
       this.eva.group.position.set(0, 0, -0.3);
       this.camYaw = 0;
-      this.camPitch = 0.62;
-      this.camDist = 3.4;
+      this.camPitch = 0.4;
+      this.camDist = 3.2;
     }
     this.camera.position.set(this.eva.group.position.x + 8, 8, this.eva.group.position.z + 8);
     this.updateCamera(1, true);
