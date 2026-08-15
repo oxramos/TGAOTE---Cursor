@@ -196,7 +196,7 @@ function homeInterior(): InteriorRoom {
   group.add(lamp);
 
   const interacts: InteriorRoom["interacts"] = [];
-  group.add(box(1.28, 2.15, 0.12, 0x2a1014, 0, 1.12, d / 2 - 0.08));
+  group.add(cutaway(box(1.28, 2.15, 0.12, 0x2a1014, 0, 1.12, d / 2 - 0.08)));
   group.add(box(1.12, 2.02, 0.08, roof, 0, 1.12, d / 2 - 0.16));
   group.add(box(0.42, 0.55, 0.04, 0x7a1c22, -0.22, 0.85, d / 2 - 0.22));
   group.add(box(0.42, 0.55, 0.04, 0x7a1c22, 0.22, 0.85, d / 2 - 0.22));

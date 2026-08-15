@@ -556,7 +556,7 @@ export class Game {
     this.sky.dir.position.copy(t).add(this.sky.sunDir.clone().multiplyScalar(70));
   }
 
-  /** Animal Crossing-style: locked high 3/4, frames the whole room, no orbit. */
+  /** Animal Crossing-style: locked 3/4 of the whole room, no orbit. */
   private applyInteriorCamera() {
     const f = this.currentInterior!.floor;
     const cx = (f.minX + f.maxX) * 0.5;
@@ -564,16 +564,17 @@ export class Game {
     const spanX = f.maxX - f.minX;
     const spanZ = f.maxZ - f.minZ;
     this.camYaw = Math.PI;
-    this.camPitch = 1.22;
-    this.fov = 50;
+    this.camPitch = 0.72;
+    const portrait = this.camera.aspect < 0.86;
+    this.fov = portrait ? 58 : 44;
     this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();
-    const look = new THREE.Vector3(cx, 0.18, cz - spanZ * 0.04);
+    const look = new THREE.Vector3(cx, 0.72, cz - spanZ * 0.06);
     const vFov = THREE.MathUtils.degToRad(this.fov);
     const halfH = Math.tan(vFov / 2);
-    const halfW = halfH * Math.max(this.camera.aspect, 0.35);
-    const dist = Math.max((spanX + 2.4) / (2 * halfW), (spanZ + 3.2) / (2 * halfH), 9.5);
+    const halfW = halfH * Math.max(this.camera.aspect, 0.42);
     const pitch = this.camPitch;
+    const dist = Math.max((spanX + 2.4) / (2 * halfW * Math.max(Math.cos(pitch), 0.28)), 12.5);
     const ox = Math.sin(this.camYaw) * Math.cos(pitch) * dist;
     const oy = Math.sin(pitch) * dist;
     const oz = Math.cos(this.camYaw) * Math.cos(pitch) * dist;
