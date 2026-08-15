@@ -58,6 +58,13 @@ function tbox(w: number, h: number, d: number, mat: THREE.Material, x = 0, y = 0
   return m;
 }
 
+/** Roof / ceiling pieces stay in the graph but hidden so the indoor camera can look down like a dollhouse. */
+function cutaway<T extends THREE.Object3D>(obj: T): T {
+  obj.name = "interior-cutaway";
+  obj.visible = false;
+  return obj;
+}
+
 function windowView(kind: "home" | "meadow" | "stone" | "palm" | "harbor" = "home"): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 256;
@@ -133,27 +140,27 @@ function homeInterior(): InteriorRoom {
 
   const wallMat = siding;
   const back = tbox(w, wallH, 0.18, wallMat, 0, wallH / 2, -d / 2);
-  const front = tbox(w, wallH, 0.18, wallMat, 0, wallH / 2, d / 2);
+  const front = cutaway(tbox(w, wallH, 0.18, wallMat, 0, wallH / 2, d / 2));
   const left = tbox(0.18, wallH, d, wallMat, -w / 2, wallH / 2, 0);
   const right = tbox(0.18, wallH, d, wallMat, w / 2, wallH / 2, 0);
   group.add(back, front, left, right);
 
   group.add(box(w, 0.92, 0.12, trim, 0, 0.5, -d / 2 + 0.12));
-  group.add(box(w, 0.92, 0.12, trim, 0, 0.5, d / 2 - 0.12));
+  group.add(cutaway(box(w, 0.92, 0.12, trim, 0, 0.5, d / 2 - 0.12)));
   group.add(box(0.12, 0.92, d, trim, -w / 2 + 0.12, 0.5, 0));
   group.add(box(0.12, 0.92, d, trim, w / 2 - 0.12, 0.5, 0));
   group.add(box(w, 0.08, 0.1, roof, 0, 0.96, -d / 2 + 0.14));
-  group.add(box(w, 0.08, 0.1, roof, 0, 0.96, d / 2 - 0.14));
+  group.add(cutaway(box(w, 0.08, 0.1, roof, 0, 0.96, d / 2 - 0.14)));
 
   const hypot = Math.hypot(w / 2, rise);
   const ang = Math.atan2(rise, w / 2);
   const roofMat = texMat(shingles(roof));
   for (const side of [-1, 1] as const) {
-    const panel = tbox(hypot + 0.15, 0.1, d + 0.2, roofMat, side * (w / 4), wallH + rise / 2, 0);
+    const panel = cutaway(tbox(hypot + 0.15, 0.1, d + 0.2, roofMat, side * (w / 4), wallH + rise / 2, 0));
     panel.rotation.z = side === -1 ? ang : -ang;
     group.add(panel);
   }
-  const gable = (z: number) => {
+  const gable = (z: number, hide = false) => {
     const sh = new THREE.Shape();
     sh.moveTo(-w / 2, 0);
     sh.lineTo(w / 2, 0);
@@ -162,13 +169,13 @@ function homeInterior(): InteriorRoom {
     geo.translate(0, 0, -0.08);
     const m = new THREE.Mesh(geo, siding);
     m.position.set(0, wallH, z);
-    group.add(m);
+    group.add(hide ? cutaway(m) : m);
   };
   gable(-d / 2);
-  gable(d / 2);
+  gable(d / 2, true);
 
   for (let i = 0; i < 4; i++) {
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, d - 0.4, 6), toon(PALETTE.woodDeep));
+    const beam = cutaway(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, d - 0.4, 6), toon(PALETTE.woodDeep)));
     beam.rotation.x = Math.PI / 2;
     beam.position.set(-2.4 + i * 1.6, wallH + 0.35, 0);
     group.add(beam);
@@ -397,10 +404,10 @@ function mallowInterior(): InteriorRoom {
   const view = new THREE.MeshBasicMaterial({ map: windowView("meadow") });
   group.add(tbox(w, 0.14, d, floorM, 0, 0.02, 0));
   group.add(tbox(w, wallH, 0.2, wool, 0, wallH / 2, -d / 2));
-  group.add(tbox(w, wallH, 0.2, wool, 0, wallH / 2, d / 2));
+  group.add(cutaway(tbox(w, wallH, 0.2, wool, 0, wallH / 2, d / 2)));
   group.add(tbox(0.2, wallH, d, wool, -w / 2, wallH / 2, 0));
   group.add(tbox(0.2, wallH, d, wool, w / 2, wallH / 2, 0));
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(5.4, 1.6, 16), texMat(shingles(0xf4c6d7)));
+  const cap = cutaway(new THREE.Mesh(new THREE.ConeGeometry(5.4, 1.6, 16), texMat(shingles(0xf4c6d7))));
   cap.position.y = wallH + 0.55;
   group.add(cap);
   for (let i = 0; i < 18; i++) {
@@ -482,10 +489,10 @@ function pebbleInterior(): InteriorRoom {
   const view = new THREE.MeshBasicMaterial({ map: windowView("stone") });
   group.add(tbox(w, 0.16, d, deep, 0, 0.02, 0));
   group.add(tbox(w, wallH, 0.22, stone, 0, wallH / 2, -d / 2));
-  group.add(tbox(w, wallH, 0.22, stone, 0, wallH / 2, d / 2));
+  group.add(cutaway(tbox(w, wallH, 0.22, stone, 0, wallH / 2, d / 2)));
   group.add(tbox(0.22, wallH, d, stone, -w / 2, wallH / 2, 0));
   group.add(tbox(0.22, wallH, d, stone, w / 2, wallH / 2, 0));
-  group.add(tbox(w + 0.3, 0.12, d + 0.3, texMat(shingles(0x5a6b4a)), 0, wallH + 0.06, 0));
+  group.add(cutaway(tbox(w + 0.3, 0.12, d + 0.3, texMat(shingles(0x5a6b4a)), 0, wallH + 0.06, 0)));
   prettyInWindow(group, -1.85, 2.05, -d / 2 + 0.14, view, 0, 0x5a6b4a);
   prettyInWindow(group, 1.85, 2.05, -d / 2 + 0.14, view, 0, 0x5a6b4a);
   group.add(box(1.2, 2.15, 0.12, PALETTE.woodDeep, 0, 1.1, d / 2 - 0.1));
@@ -562,8 +569,8 @@ function coralInterior(): InteriorRoom {
   group.add(tbox(w, wallH, 0.16, plank, 0, wallH / 2, -d / 2));
   group.add(tbox(0.16, wallH, d, plank, -w / 2, wallH / 2, 0));
   group.add(tbox(0.16, wallH, d, plank, w / 2, wallH / 2, 0));
-  group.add(tbox(w, wallH, 0.16, plank, 0, wallH / 2, d / 2));
-  const thatch = new THREE.Mesh(new THREE.ConeGeometry(5.2, 1.55, 8), texMat(shingles(0xd4a44a)));
+  group.add(cutaway(tbox(w, wallH, 0.16, plank, 0, wallH / 2, d / 2)));
+  const thatch = cutaway(new THREE.Mesh(new THREE.ConeGeometry(5.2, 1.55, 8), texMat(shingles(0xd4a44a))));
   thatch.position.y = wallH + 0.5;
   group.add(thatch);
   prettyInWindow(group, -1.9, 1.65, -d / 2 + 0.12, view, 0, 0xe23a3a);
@@ -636,11 +643,11 @@ function brineInterior(): InteriorRoom {
   const view = new THREE.MeshBasicMaterial({ map: windowView("harbor") });
   group.add(tbox(w, 0.14, d, deep, 0, 0.02, 0));
   group.add(tbox(w, wallH, 0.18, plank, 0, wallH / 2, -d / 2));
-  group.add(tbox(w, wallH, 0.18, plank, 0, wallH / 2, d / 2));
+  group.add(cutaway(tbox(w, wallH, 0.18, plank, 0, wallH / 2, d / 2)));
   group.add(tbox(0.18, wallH, d, plank, -w / 2, wallH / 2, 0));
   group.add(tbox(0.18, wallH, d, plank, w / 2, wallH / 2, 0));
   const roof = texMat(shingles(0x1f3a5a));
-  group.add(tbox(w + 0.4, 0.12, d + 0.3, roof, 0, wallH + 0.2, 0));
+  group.add(cutaway(tbox(w + 0.4, 0.12, d + 0.3, roof, 0, wallH + 0.2, 0)));
   prettyInWindow(group, -1.7, 1.75, -d / 2 + 0.12, view, 0, 0x1f3a5a);
   prettyInWindow(group, 1.7, 1.75, -d / 2 + 0.12, view, 0, 0x1f3a5a);
   group.add(tbox(0.95, 2.05, 0.1, deep, -0.7, 1.05, d / 2 - 0.1));

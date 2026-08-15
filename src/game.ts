@@ -315,12 +315,13 @@ export class Game {
     const mouse = this.input.mouseDelta();
     const touchLook = document.documentElement.classList.contains("touch-on");
     const inside = !!this.currentInterior;
-    const lookMul = inside ? 1.55 : 1;
-    this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005) * lookMul;
-    this.camPitch = THREE.MathUtils.clamp(this.camPitch + mouse.y * (touchLook ? 0.0062 : 0.004) * lookMul, 0.1, 1.15);
-    const minZoom = inside ? 2.1 : 5;
-    const maxZoom = inside ? 5.4 : 22;
-    this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, minZoom, maxZoom);
+    if (!inside) {
+      this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005);
+      this.camPitch = THREE.MathUtils.clamp(this.camPitch + mouse.y * (touchLook ? 0.0062 : 0.004), 0.1, 1.15);
+      this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, 5, 22);
+    } else {
+      this.input.consumeWheel();
+    }
 
     this.spyglass = this.input.pressed("KeyF") && !this.currentInterior;
     $("spyglass-rim").classList.toggle("hidden", !this.spyglass);
@@ -530,51 +531,55 @@ export class Game {
   }
 
   private updateCamera(dt: number, snap = false) {
-    const inside = !!this.currentInterior;
-    const targetFov = this.spyglass ? 26 : inside ? 50 : this.sailing ? 50 : 48;
+    if (this.currentInterior) {
+      this.applyInteriorCamera();
+      return;
+    }
+    const targetFov = this.spyglass ? 26 : this.sailing ? 50 : 48;
     this.fov = snap ? targetFov : THREE.MathUtils.lerp(this.fov, targetFov, 1 - Math.pow(0.01, dt));
     this.camera.fov = this.fov;
     this.camera.updateProjectionMatrix();
-    const dist = inside
-      ? THREE.MathUtils.clamp(this.camDist, 2.1, 5.4)
-      : this.sailing
-        ? this.camDist + 3
-        : this.camDist;
-    const pitch = inside ? THREE.MathUtils.clamp(this.camPitch, 0.16, 1.05) : this.camPitch;
+    const dist = this.sailing ? this.camDist + 3 : this.camDist;
+    const pitch = this.camPitch;
     const t = this.eva.group.position;
-    const lookY = inside ? 0.92 : 1.15;
-    const look = new THREE.Vector3(t.x, t.y + lookY, t.z);
+    const look = new THREE.Vector3(t.x, t.y + 1.15, t.z);
     const ox = Math.sin(this.camYaw) * Math.cos(pitch) * dist;
     const oy = Math.sin(pitch) * dist;
     const oz = Math.cos(this.camYaw) * Math.cos(pitch) * dist;
     const desired = new THREE.Vector3(look.x - ox, look.y + oy, look.z - oz);
-    if (inside) this.keepCamInRoom(desired, look);
-    const follow = snap ? 1 : inside ? 1 - Math.pow(0.0007, dt) : 1 - Math.pow(0.02, dt);
+    const follow = snap ? 1 : 1 - Math.pow(0.02, dt);
     if (snap) this.camera.position.copy(desired);
     else this.camera.position.lerp(desired, follow);
-    if (inside) this.keepCamInRoom(this.camera.position, look);
     this.camera.lookAt(look);
     this.sky.dir.target.position.copy(t);
     this.sky.dir.target.updateMatrixWorld();
     this.sky.dir.position.copy(t).add(this.sky.sunDir.clone().multiplyScalar(70));
   }
 
-  private keepCamInRoom(p: THREE.Vector3, look: THREE.Vector3) {
-    const f = this.currentInterior?.floor;
-    if (!f) return;
-    const pad = 0.42;
-    const ok = (q: THREE.Vector3) =>
-      q.x >= f.minX + pad && q.x <= f.maxX - pad && q.z >= f.minZ + pad && q.z <= f.maxZ - pad && q.y >= 0.95 && q.y <= 3.55;
-    p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
-    if (ok(p)) return;
-    for (let i = 0; i < 12; i++) {
-      p.lerp(look, 0.14);
-      p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
-      if (ok(p)) return;
-    }
-    p.x = THREE.MathUtils.clamp(p.x, f.minX + pad, f.maxX - pad);
-    p.z = THREE.MathUtils.clamp(p.z, f.minZ + pad, f.maxZ - pad);
-    p.y = THREE.MathUtils.clamp(p.y, 1.05, 3.5);
+  /** Animal Crossing-style: locked high 3/4, frames the whole room, no orbit. */
+  private applyInteriorCamera() {
+    const f = this.currentInterior!.floor;
+    const cx = (f.minX + f.maxX) * 0.5;
+    const cz = (f.minZ + f.maxZ) * 0.5;
+    const spanX = f.maxX - f.minX;
+    const spanZ = f.maxZ - f.minZ;
+    this.camYaw = Math.PI;
+    this.camPitch = 1.22;
+    this.fov = 50;
+    this.camera.fov = this.fov;
+    this.camera.updateProjectionMatrix();
+    const look = new THREE.Vector3(cx, 0.18, cz - spanZ * 0.04);
+    const vFov = THREE.MathUtils.degToRad(this.fov);
+    const halfH = Math.tan(vFov / 2);
+    const halfW = halfH * Math.max(this.camera.aspect, 0.35);
+    const dist = Math.max((spanX + 2.4) / (2 * halfW), (spanZ + 3.2) / (2 * halfH), 9.5);
+    const pitch = this.camPitch;
+    const ox = Math.sin(this.camYaw) * Math.cos(pitch) * dist;
+    const oy = Math.sin(pitch) * dist;
+    const oz = Math.cos(this.camYaw) * Math.cos(pitch) * dist;
+    const desired = new THREE.Vector3(look.x - ox, look.y + oy, look.z - oz);
+    this.camera.position.copy(desired);
+    this.camera.lookAt(look);
   }
 
   private updateWind(dt: number) {
@@ -756,9 +761,7 @@ export class Game {
     }
     this.renderPass.scene = this.interiorScene;
     this.worldCam = { yaw: this.camYaw, pitch: this.camPitch, dist: this.camDist };
-    this.camDist = 3.15;
-    this.camPitch = 0.42;
-    this.camYaw = 0;
+    this.camYaw = Math.PI;
     this.setState("interior");
     this.updateCamera(1, true);
     this.audio.chime("ui");
@@ -1201,6 +1204,7 @@ export class Game {
       if (this.sailing) wind.textContent = `Compass ${this.windArrow()} ${this.windLabel()} · tap`;
     }
     $("touch-decor").classList.toggle("hidden", this.currentInterior?.id !== "home");
+    $("touch-look").classList.toggle("hidden", !!this.currentInterior);
     if (this.bannerT > 0) {
       this.bannerT -= 0.016;
       if (this.bannerT <= 0) $("banner").classList.add("hidden");
@@ -1332,9 +1336,6 @@ export class Game {
       this.save.items.heart_conch = 1;
       fillShelf(this.currentInterior!, this.save.displayed);
       this.eva.group.position.set(0, 0, -0.3);
-      this.camYaw = 0;
-      this.camPitch = 0.4;
-      this.camDist = 3.2;
     }
     this.camera.position.set(this.eva.group.position.x + 8, 8, this.eva.group.position.z + 8);
     this.updateCamera(1, true);
