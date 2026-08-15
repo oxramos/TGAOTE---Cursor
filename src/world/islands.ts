@@ -159,6 +159,37 @@ export function beachPoint(isl: IslandDef, fromX: number, fromZ: number): THREE.
   return new THREE.Vector3(x, heightAt(x, z), z);
 }
 
+export const PIER_ANG: Record<string, number> = {
+  home: 0.32,
+  harbor: 1.55,
+};
+
+export function houseWorldOffset(h: { position: THREE.Vector3; yaw: number }, lx: number, lz: number) {
+  return {
+    x: h.position.x + lx * Math.cos(h.yaw) + lz * Math.sin(h.yaw),
+    z: h.position.z - lx * Math.sin(h.yaw) + lz * Math.cos(h.yaw),
+  };
+}
+
+export function pierCleat(isl: IslandDef, ang: number): THREE.Vector3 {
+  const R = coastRadius(isl, ang);
+  const t = R * 0.86 + 8 * 0.85;
+  return new THREE.Vector3(isl.x + Math.cos(ang) * t, 0.52, isl.z + Math.sin(ang) * t);
+}
+
+export function pierBerth(isl: IslandDef, ang: number): THREE.Vector3 {
+  const R = coastRadius(isl, ang);
+  const ux = Math.cos(ang);
+  const uz = Math.sin(ang);
+  for (let extra = 2.4; extra < 12; extra += 0.35) {
+    const t = R * 0.86 + 8 * 0.85 + extra;
+    const x = isl.x + ux * t;
+    const z = isl.z + uz * t;
+    if (!isLand(x, z)) return new THREE.Vector3(x, 0.16, z);
+  }
+  return berthPoint(isl, isl.x + ux * (R + 10), isl.z + uz * (R + 10));
+}
+
 export function berthPoint(isl: IslandDef, fromX: number, fromZ: number): THREE.Vector3 {
   const dx = fromX - isl.x;
   const dz = fromZ - isl.z;
@@ -206,8 +237,17 @@ export function buildArchipelago(scene: THREE.Scene): { houses: HouseAnchor[]; c
       group.rotation.y = layout.yaw;
       scene.add(group);
       houses.push({ kind: layout.kind, island: isl.id, position: pos.clone(), yaw: layout.yaw });
-      const r = layout.kind === "home" ? 4.2 : layout.kind === "pebble" ? 2.7 : layout.kind === "coral" ? 2.7 : 3.0;
-      colliders.push({ x: pos.x, z: pos.z, r });
+      const yaw = layout.yaw;
+      if (layout.kind === "home") {
+        const main = houseWorldOffset({ position: pos, yaw }, 0.15, -0.45);
+        colliders.push({ x: main.x, z: main.z, r: 2.42 });
+        const wing = houseWorldOffset({ position: pos, yaw }, 3.55, -0.35);
+        colliders.push({ x: wing.x, z: wing.z, r: 1.45 });
+      } else {
+        const r = layout.kind === "pebble" ? 2.15 : layout.kind === "coral" ? 2.05 : layout.kind === "mallow" ? 2.15 : 2.25;
+        const body = houseWorldOffset({ position: pos, yaw }, 0, -0.25);
+        colliders.push({ x: body.x, z: body.z, r });
+      }
     }
   }
 
@@ -458,6 +498,12 @@ function makePier(isl: IslandDef, ang: number): THREE.Group {
   const tip = R * 0.86 + 8 * 0.85;
   lantern.position.set(isl.x + ux * tip, 0.85, isl.z + uz * tip);
   g.add(lantern);
+  const cleat = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.18), toon(PALETTE.woodDeep));
+  cleat.position.set(isl.x + ux * (tip - 0.4), 0.32, isl.z + uz * (tip - 0.4));
+  g.add(cleat);
+  const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.38, 8), toon(PALETTE.wood));
+  bollard.position.set(isl.x + ux * (tip - 0.4), 0.48, isl.z + uz * (tip - 0.4));
+  g.add(bollard);
   return g;
 }
 

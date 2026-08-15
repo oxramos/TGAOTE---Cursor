@@ -108,8 +108,8 @@ function dressTexture(): THREE.CanvasTexture {
 export class Eva {
   group = new THREE.Group();
   body: THREE.Group;
-  leftLeg: THREE.Mesh;
-  rightLeg: THREE.Mesh;
+  leftLeg: THREE.Group;
+  rightLeg: THREE.Group;
   leftWing: THREE.Mesh;
   rightWing: THREE.Mesh;
   spyglass: THREE.Group;
@@ -270,8 +270,8 @@ export class Eva {
     };
     const footL = makeFoot(-0.13);
     const footR = makeFoot(0.13);
-    this.leftLeg = footL.shin;
-    this.rightLeg = footR.shin;
+    this.leftLeg = footL.group;
+    this.rightLeg = footR.group;
     this.group.add(footL.group, footR.group);
     this.body.position.y = 0.26;
 
@@ -304,10 +304,24 @@ export class Eva {
     this.pickupT = 0.48;
   }
 
-  update(dt: number, moving: boolean, sailing: boolean, spyglass: boolean) {
-    this.bob += dt * (moving ? 10 : 2.4);
-    const bounce = Math.sin(this.bob) * (moving ? 0.055 : 0.016);
-    this.body.position.y = 0.26 + bounce;
+  update(
+    dt: number,
+    moving: boolean,
+    sailing: boolean,
+    spyglass: boolean,
+    turnRate = 0,
+    airborne = false,
+    floating = false,
+  ) {
+    const run = moving && !airborne && !sailing;
+    const flutter = floating || (airborne && !sailing);
+    this.bob += dt * (flutter ? 16 : run ? 9.2 : sailing ? 3.2 : 2.2);
+    const step = this.bob;
+    const bounce = run ? Math.abs(Math.sin(step)) * 0.07 : flutter ? Math.sin(step) * 0.04 : Math.sin(step) * 0.016;
+    this.body.position.y = 0.26 + bounce + (airborne && !floating ? 0.04 : 0);
+
+    const bank = THREE.MathUtils.clamp(turnRate * 0.22, -0.42, 0.42);
+    const lean = run ? 0.12 : flutter ? -0.08 : 0;
 
     if (this.pickupT > 0) {
       this.pickupT = Math.max(0, this.pickupT - dt);
@@ -320,14 +334,59 @@ export class Eva {
       this.leftWing.rotation.x = -squash * 0.6;
     } else {
       this.body.scale.set(1, 1, 1);
-      this.body.rotation.z = Math.sin(this.bob * 0.5) * (moving ? 0.08 : 0.03);
-      this.leftWing.rotation.z = 0.4 + Math.sin(this.bob) * (moving ? 0.5 : 0.12);
-      this.rightWing.rotation.z = -0.4 - Math.sin(this.bob) * (moving ? 0.5 : 0.12);
-      this.leftWing.rotation.x = 0;
+      this.body.rotation.z = THREE.MathUtils.damp(this.body.rotation.z, bank + Math.sin(step * 0.5) * (run ? 0.05 : 0.02), 8, dt);
+      this.body.rotation.x = THREE.MathUtils.damp(this.body.rotation.x, lean, 6, dt);
+
+      if (flutter) {
+        const flap = 0.85 + Math.sin(step) * 0.55;
+        this.leftWing.rotation.z = flap;
+        this.rightWing.rotation.z = -flap;
+        this.leftWing.rotation.x = -0.35 + Math.sin(step * 1.3) * 0.25;
+        this.rightWing.rotation.x = -0.35 - Math.sin(step * 1.3) * 0.25;
+        this.leftWing.rotation.y = 0.35 + bank * 0.4;
+        this.rightWing.rotation.y = -0.35 + bank * 0.4;
+      } else if (run) {
+        this.leftWing.rotation.z = 0.55 + Math.sin(step) * 0.42;
+        this.rightWing.rotation.z = -0.55 - Math.sin(step + 0.4) * 0.42;
+        this.leftWing.rotation.x = -0.28 + Math.sin(step + 0.6) * 0.22;
+        this.rightWing.rotation.x = -0.28 + Math.sin(step + 1.1) * 0.22;
+        this.leftWing.rotation.y = 0.2 + bank * 0.55 + Math.sin(step) * 0.18;
+        this.rightWing.rotation.y = -0.2 + bank * 0.55 - Math.sin(step) * 0.18;
+      } else {
+        this.leftWing.rotation.z = 0.42 + Math.sin(step) * 0.1;
+        this.rightWing.rotation.z = -0.42 - Math.sin(step) * 0.1;
+        this.leftWing.rotation.x = THREE.MathUtils.damp(this.leftWing.rotation.x, 0, 8, dt);
+        this.rightWing.rotation.x = THREE.MathUtils.damp(this.rightWing.rotation.x, 0, 8, dt);
+        this.leftWing.rotation.y = THREE.MathUtils.damp(this.leftWing.rotation.y, 0.08, 8, dt);
+        this.rightWing.rotation.y = THREE.MathUtils.damp(this.rightWing.rotation.y, -0.08, 8, dt);
+      }
     }
 
-    this.leftLeg.rotation.x = moving ? Math.sin(this.bob) * 0.7 : 0.08;
-    this.rightLeg.rotation.x = moving ? Math.cos(this.bob) * 0.7 : 0.08;
+    if (flutter) {
+      this.leftLeg.rotation.x = 0.55;
+      this.rightLeg.rotation.x = 0.62;
+      this.leftLeg.position.y = 0.04;
+      this.rightLeg.position.y = 0.05;
+      this.leftLeg.position.z = -0.04;
+      this.rightLeg.position.z = -0.03;
+    } else if (run) {
+      const a = Math.sin(step);
+      const b = Math.sin(step + Math.PI);
+      this.leftLeg.rotation.x = a * 0.85;
+      this.rightLeg.rotation.x = b * 0.85;
+      this.leftLeg.position.z = a * 0.09;
+      this.rightLeg.position.z = b * 0.09;
+      this.leftLeg.position.y = Math.max(0, a) * 0.07;
+      this.rightLeg.position.y = Math.max(0, b) * 0.07;
+    } else {
+      this.leftLeg.rotation.x = THREE.MathUtils.damp(this.leftLeg.rotation.x, 0.06, 10, dt);
+      this.rightLeg.rotation.x = THREE.MathUtils.damp(this.rightLeg.rotation.x, 0.06, 10, dt);
+      this.leftLeg.position.z = THREE.MathUtils.damp(this.leftLeg.position.z, 0, 10, dt);
+      this.rightLeg.position.z = THREE.MathUtils.damp(this.rightLeg.position.z, 0, 10, dt);
+      this.leftLeg.position.y = THREE.MathUtils.damp(this.leftLeg.position.y, 0, 10, dt);
+      this.rightLeg.position.y = THREE.MathUtils.damp(this.rightLeg.position.y, 0, 10, dt);
+    }
+
     this.holdingGlass = spyglass;
     this.spyglass.visible = spyglass || sailing;
     if (sailing) {
@@ -337,6 +396,6 @@ export class Eva {
       this.spyglass.position.set(0.04, 0.78, 0.34);
       this.spyglass.rotation.set(-0.15, 0, 0.9);
     }
-    this.tiara.rotation.z = Math.sin(this.bob * 0.5) * 0.05;
+    this.tiara.rotation.z = Math.sin(this.bob * 0.5) * 0.05 + bank * 0.15;
   }
 }

@@ -36,7 +36,7 @@ function hexRgb(hex: number): [number, number, number] {
   return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
 }
 
-function clapboard(hex: number): THREE.CanvasTexture {
+export function clapboard(hex: number): THREE.CanvasTexture {
   return canvasTex(`clap-${hex}`, (ctx, s) => {
     const [r, g, b] = hexRgb(hex);
     for (let y = 0; y < s; y += 18) {
@@ -49,7 +49,7 @@ function clapboard(hex: number): THREE.CanvasTexture {
   });
 }
 
-function shingles(hex: number): THREE.CanvasTexture {
+export function shingles(hex: number): THREE.CanvasTexture {
   return canvasTex(`shin-${hex}`, (ctx, s) => {
     const [r, g, b] = hexRgb(hex);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
@@ -74,7 +74,7 @@ function shingles(hex: number): THREE.CanvasTexture {
   });
 }
 
-function stoneBlocks(hex: number): THREE.CanvasTexture {
+export function stoneBlocks(hex: number): THREE.CanvasTexture {
   return canvasTex(`stone-${hex}`, (ctx, s) => {
     const [r, g, b] = hexRgb(hex);
     ctx.fillStyle = `rgb(${r},${g},${b})`;
@@ -93,7 +93,7 @@ function stoneBlocks(hex: number): THREE.CanvasTexture {
   });
 }
 
-function planks(hex: number): THREE.CanvasTexture {
+export function planks(hex: number): THREE.CanvasTexture {
   return canvasTex(`plank-${hex}`, (ctx, s) => {
     const [r, g, b] = hexRgb(hex);
     for (let x = 0; x < s; x += 22) {
@@ -144,7 +144,7 @@ function canvasSign(text: string, bg = "#fff6ea", fg = "#5a2018"): THREE.CanvasT
   );
 }
 
-function texMat(map: THREE.CanvasTexture, tint = 0xffffff, opts?: { emissive?: number }): THREE.MeshToonMaterial {
+export function texMat(map: THREE.CanvasTexture, tint = 0xffffff, opts?: { emissive?: number }): THREE.MeshToonMaterial {
   return toon(tint, { map, emissive: opts?.emissive });
 }
 
