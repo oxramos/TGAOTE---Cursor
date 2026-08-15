@@ -214,6 +214,18 @@ function decorFor(def: ItemDef): THREE.Object3D {
   } else if (def.id === "tea_set") {
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.1, 10), toon(def.color));
     g.add(cup);
+  } else if (def.id === "knitted_blanket" || def.id === "heart_pillow") {
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), toon(def.color));
+    c.scale.set(1.35, 0.28, 1.1);
+    g.add(c);
+  } else if (def.id === "specimen_jar") {
+    const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.28, 10), toon(def.color));
+    g.add(jar);
+  } else if (def.id === "stall_banner") {
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.5), toon(def.color));
+    g.add(b);
+  } else if (def.id === "helm_wheel") {
+    g.add(new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 14), toon(def.color)));
   } else {
     g.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), toon(def.color)));
   }

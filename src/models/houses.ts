@@ -11,6 +11,10 @@ export function createHouse(kind: HouseKind): THREE.Group {
   if (kind === "pebble") g.add(stoneLibrary());
   if (kind === "coral") g.add(stiltShop());
   if (kind === "brine") g.add(boatHouse());
+  const lamp = new THREE.PointLight(0xffc07a, 0, 9);
+  lamp.name = "porch-lamp";
+  lamp.position.set(0, 2.15, 2.35);
+  g.add(lamp);
   return g;
 }
 

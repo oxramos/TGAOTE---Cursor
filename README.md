@@ -22,8 +22,10 @@ Then open the local Vite URL. `npm run build` typechecks and bundles to `dist/`.
 | Scroll | Zoom |
 | E | Interact, pick up, board, dock, talk, enter |
 | F | Spyglass (zoom + highlight nearby finds) |
+| M | Unfold the sea chart (after Brine's trade) |
 | Tab | Satchel |
 | Q | Decorate mode inside Eva's cottage |
+| R | Rotate the nearest decoration (decorate mode) |
 | Esc | Pause / back |
 
 ## What's in the sea
@@ -33,7 +35,9 @@ Then open the local Vite URL. `npm run build` typechecks and bundles to `dist/`.
 - **Stone Isle** — Pebble the frog, stone library, rock-mad scholar
 - **Coral Cay** — Coral the parrot merchant
 - **Brineharbor** — Captain Brine the otter
-- **Whisper Reef** & **Lookout Stack** — hush-hush places for legendary finds
+- **Whisper Reef** & **Lookout Stack** — hush-hush places for legendary finds. Brine's sea chart marks the rumor; spyglass from the stack winks at the reef.
+
+Neighbours remember you. Friendship opens later trades, indoor knick-knacks, and a gift table in their houses. Sleep sometimes changes the morning — fog, a visiting neighbour on the pier, or an extra scallop on the beach.
 
 Shells and rocks come in common, uncommon, rare, and legendary. Rarer ones throw light columns and sparkles you can spot from the boat. Pick one up and it hops into Eva's satchel — open the bag (Tab) and tap a find if you want to turn it in the light.
 

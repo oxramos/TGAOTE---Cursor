@@ -9,15 +9,18 @@ import { Eva } from "./models/eva";
 import { RedBoat } from "./models/boat";
 import { Sky } from "./world/sky";
 import { Ocean } from "./world/ocean";
-import { buildArchipelago, heightAt, nearestIsland, beachPoint, berthPoint, pierBerth, pierCleat, PIER_ANG, houseWorldOffset, pushToWater, isLand } from "./world/islands";
+import { buildArchipelago, heightAt, nearestIsland, beachPoint, berthPoint, pierBerth, pierCleat, PIER_ANG, houseWorldOffset, pushToWater, isLand, yardPoint } from "./world/islands";
 import { CollectibleWorld } from "./world/collectibles";
-import { buildInterior, fillShelf, rebuildDecor, type InteriorRoom } from "./world/interior";
+import { buildInterior, fillShelf, rebuildDecor, fillNpcGift, fillFriendDecor, type InteriorRoom } from "./world/interior";
 import { createNpc } from "./models/animals";
 import { InspectView } from "./inspect";
 import { AudioBed } from "./audio";
 import { freshSave, loadSave, writeSave } from "./save";
 import { glowSprite, toon } from "./materials";
 import { ITEMS, ISLANDS, NPCS, SLEEP_LINES } from "./catalog";
+import { INTRO, bumpTalk, friendPips, friendTier, greetingFor, hasChart, questOpen } from "./progress";
+import { itemIcon, npcPortrait } from "./portraits";
+import { createItemVisual } from "./models/items";
 import type { GameState, NpcId, Rarity, SaveData, TradeRecipe } from "./types";
 import type { HouseKind } from "./models/houses";
 import type { HouseAnchor } from "./world/islands";
@@ -88,6 +91,9 @@ export class Game {
   private mooringStake: THREE.Mesh;
   private ropeUp = new THREE.Vector3(0, 1, 0);
   private ropeDir = new THREE.Vector3();
+  private giftTarget: NpcId | "yard" | null = null;
+  private yardVis: THREE.Group | null = null;
+  private portraits = new Map<NpcId, string>();
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -170,7 +176,20 @@ export class Game {
       this.setState("title");
     };
     $("btn-close-inv").onclick = () => this.setState(this.currentInterior ? "interior" : "world");
-    $("btn-close-shelf").onclick = () => this.setState("interior");
+    $("btn-close-shelf").onclick = () => {
+      const back = this.giftTarget === "yard" ? "world" : "interior";
+      this.giftTarget = null;
+      this.restoreShelfLabels();
+      this.setState(back);
+    };
+    $("btn-close-chart").onclick = () => this.setState(this.currentInterior ? "interior" : "world");
+    $("btn-chart").onclick = () => this.openChart();
+    $("vol-slider").oninput = () => {
+      const v = Number(($("vol-slider") as HTMLInputElement).value) / 100;
+      this.save.volume = v;
+      this.audio.setVolume(v);
+      this.persist();
+    };
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
@@ -213,12 +232,21 @@ export class Game {
     } else {
       this.settleBoat();
     }
+    this.audio.setVolume(this.save.volume);
+    const slider = $("vol-slider") as HTMLInputElement | null;
+    if (slider) slider.value = String(Math.round(this.save.volume * 100));
+    this.refreshYard();
+    this.parkVisitor();
     this.setState("world");
     this.audio.resume();
     $("title-screen").classList.add("hidden");
     $("hud").classList.remove("hidden");
     if (!new URLSearchParams(location.search).get("shot")) {
-      this.toast(fromSave ? "Welcome back, little admiral." : "A new day begins on the high seas.");
+      if (!fromSave && this.save.introBeat <= INTRO.wake) {
+        this.toast("The beach left you a little white shell. The sea is already waving.");
+      } else {
+        this.toast(fromSave ? "Welcome back, little admiral." : "A new day begins on the high seas.");
+      }
     }
   }
 
@@ -230,11 +258,15 @@ export class Game {
     $("dialogue").classList.toggle("hidden", s !== "dialogue");
     $("inspect").classList.toggle("hidden", s !== "inspect");
     $("inventory").classList.toggle("hidden", s !== "inventory");
-    $("shelf-picker").classList.toggle("hidden", s !== "shelf");
+    $("shelf-picker").classList.toggle("hidden", s !== "shelf" && s !== "gift");
     $("sleep-overlay").classList.toggle("hidden", s !== "sleeping");
+    $("chart-screen").classList.toggle("hidden", s !== "chart");
     $("touch-hud").classList.toggle("hidden", s !== "world" && s !== "interior");
+    const chartBtn = $("btn-chart");
+    if (chartBtn) chartBtn.hidden = !hasChart(this.save);
     if (s === "title") this.refreshContinue();
     if (s !== "inspect") this.inspect.hide();
+    if (s === "chart") this.drawChart();
   }
 
   private loop = () => {
@@ -261,10 +293,15 @@ export class Game {
 
     if (this.input.consume("Escape")) {
       if (this.state === "inspect") this.setState(this.currentInterior ? "interior" : "world");
-      else if (this.state === "inventory" || this.state === "shelf") this.setState(this.currentInterior ? "interior" : "world");
+      else if (this.state === "inventory" || this.state === "shelf" || this.state === "gift") this.setState(this.currentInterior ? "interior" : "world");
       else if (this.state === "dialogue") this.setState(this.currentInterior ? "interior" : "world");
+      else if (this.state === "chart") this.setState(this.currentInterior ? "interior" : "world");
       else if (this.state === "paused") this.setState(this.currentInterior ? "interior" : "world");
       else this.setState("paused");
+    }
+    if (this.input.consume("KeyM") && hasChart(this.save) && (this.state === "world" || this.state === "interior" || this.state === "paused")) {
+      this.openChart();
+      return;
     }
     if (this.state === "paused" || this.state === "sleeping") return;
 
@@ -280,7 +317,7 @@ export class Game {
       this.inspect.render(this.elapsed);
       return;
     }
-    if (this.state === "inventory" || this.state === "shelf") return;
+    if (this.state === "inventory" || this.state === "shelf" || this.state === "gift" || this.state === "chart") return;
 
     const playable = this.state === "world" || this.state === "interior" || this.state === "dialogue";
     if (!playable) return;
@@ -290,6 +327,8 @@ export class Game {
       this.sky.update(this.save.time, dt);
       const fog = this.world.fog as THREE.FogExp2;
       fog.color.copy(this.sky.material.uniforms.uHorizon.value);
+      if (this.save.morningFog && this.save.time > 0.45) this.save.morningFog = false;
+      fog.density = this.save.morningFog ? 0.011 : 0.0042;
       this.ocean.update(this.elapsed, this.sky.sunDir);
       this.collect.update(this.elapsed);
       this.world.traverse((o) => {
@@ -330,6 +369,17 @@ export class Game {
     else this.updateWorld(dt);
 
     this.eva.update(dt, this.isMoving(), this.sailing, this.spyglass, this.turnRate, !this.grounded && !this.sailing, this.floating);
+    this.audio.footsteps(dt, this.isMoving() && !this.sailing, this.grounded);
+    const here = nearestIsland(this.eva.group.position.x, this.eva.group.position.z);
+    this.audio.setAmbience({
+      indoors: !!this.currentInterior,
+      island: here?.id ?? "sea",
+      night: this.isNight(),
+      sailing: this.sailing,
+    });
+    this.updatePorchLamps();
+    this.maybeLookoutHint();
+    this.maybeVisitorGoHome();
     this.updateCamera(dt);
     this.updateHud();
     this.gatherPrompt();
@@ -351,6 +401,7 @@ export class Game {
     const night = this.isNight();
     this.npcs.forEach((mesh) => (mesh.visible = !night));
     this.updateWind(dt);
+    if (this.save.morningEvent === "squall") this.windSpeed += 2.4;
 
     if (this.sailing) {
       if (this.input.consume("KeyC")) this.callWind();
@@ -405,6 +456,7 @@ export class Game {
         this.toast(isl.discovery);
         this.audio.chime("rare");
       }
+      this.persist();
     }
   }
 
@@ -472,6 +524,7 @@ export class Game {
     if (this.input.consume("Space") && this.grounded) {
       this.evaVy = onWorld ? 11.4 : 6.8;
       this.grounded = false;
+      this.audio.foley("hop");
     }
     this.floating = this.input.pressed("Space") && !this.grounded;
     if (!this.grounded) {
@@ -517,17 +570,17 @@ export class Game {
     this.sailing = false;
     this.walk(dt, false);
     this.applyHop(dt, false);
-    const night = this.isNight();
     this.currentInterior?.group.traverse((o) => {
-      if (o.name === "interior-npc") o.visible = night || true;
+      if (o.name === "interior-npc") o.visible = true;
     });
     this.currentInterior?.shelfAnchors.forEach((a) => {
       a.children.forEach((ch) => (ch.rotation.y = this.elapsed * 0.4));
     });
     if (this.input.consume("KeyQ") && this.currentInterior?.id === "home") {
       this.decorate = !this.decorate;
-      this.toast(this.decorate ? "Decorating — open your bag and tap a decor piece." : "Done fussing with the furniture.");
+      this.toast(this.decorate ? "Decorating — bag to place, E to pick up, R to turn." : "Done fussing with the furniture.");
     }
+    if (this.decorate && this.input.consume("KeyR")) this.rotateNearestDecor();
   }
 
   private updateCamera(dt: number, snap = false) {
@@ -678,6 +731,17 @@ export class Game {
       consider(`E — Pick up ${def.name}`, () => this.takePickup(pickup.id));
     }
 
+    if (!this.sailing) {
+      const reef = ISLANDS.find((i) => i.id === "reef")!;
+      if (Math.hypot(p.x - reef.x, p.z - reef.z) < reef.radius * 0.85) {
+        consider("E — Listen to the reef", () => this.listenReef());
+      }
+      const yard = yardPoint();
+      if (Math.hypot(p.x - yard.x, p.z - yard.z) < 2.4) {
+        consider(this.save.yardItem ? "E — Take the yard hanging" : "E — Hang something on the line", () => this.openYard());
+      }
+    }
+
     this.npcs.forEach((mesh, id) => {
       if (!mesh.visible) return;
       if (mesh.position.distanceTo(p) < 2.6) {
@@ -702,10 +766,11 @@ export class Game {
         this.camPitch = 0.3;
         this.camDist = Math.max(this.camDist, 13);
         this.updateCamera(1, true);
-        this.audio.chime("ui");
+        this.audio.foley("sail");
+        this.advanceIntro(INTRO.boarded, "Meadow Isle is west of the kettle island. Mallow keeps the kettle on.");
         if (!this.sailedHint) {
           this.sailedHint = true;
-          this.toast("W and S to go. Tap Compass to call the wind to your bow.");
+          if (this.save.introBeat > INTRO.boarded) this.toast("W and S to go. Tap Compass to call the wind to your bow.");
         }
       });
     }
@@ -759,13 +824,18 @@ export class Game {
     if (h.kind === "home") {
       fillShelf(room, this.save.displayed);
       rebuildDecor(room, this.save.decorations);
+    } else {
+      const npc = h.kind as NpcId;
+      fillNpcGift(room, this.save.npcGifts[npc] ?? null);
+      fillFriendDecor(room, friendTier(this.save.friendship[npc] ?? 0));
+      if (this.isNight()) this.toast(`${NPCS[npc].name} came in from the dark.`);
     }
     this.renderPass.scene = this.interiorScene;
     this.worldCam = { yaw: this.camYaw, pitch: this.camPitch, dist: this.camDist };
     this.camYaw = Math.PI;
     this.setState("interior");
     this.updateCamera(1, true);
-    this.audio.chime("ui");
+    this.audio.foley("door");
   }
 
   private leaveHouse() {
@@ -792,6 +862,7 @@ export class Game {
     this.camDist = this.worldCam.dist;
     this.setState("world");
     this.updateCamera(1, true);
+    this.audio.foley("door");
   }
 
   private outdoorStand(h: HouseAnchor) {
@@ -812,10 +883,20 @@ export class Game {
     if (kind.type === "sleep") this.sleep();
     if (kind.type === "shelf") this.openShelf(kind.index);
     if (kind.type === "npc") this.openDialogue(kind.id);
+    if (kind.type === "gift") this.openGift(kind.id);
+  }
+
+  private restoreShelfLabels() {
+    const title = document.querySelector("#shelf-picker h2");
+    const muted = document.querySelector("#shelf-picker .muted");
+    if (title) title.textContent = "Place on the shelf";
+    if (muted) muted.textContent = "Choose a treasure to display in this nook.";
   }
 
   private openShelf(index: number) {
     this.shelfIndex = index;
+    this.giftTarget = null;
+    this.restoreShelfLabels();
     this.setState("shelf");
     const grid = $("shelf-grid");
     grid.innerHTML = "";
@@ -829,17 +910,25 @@ export class Game {
       const def = ITEMS[id];
       const el = document.createElement("button");
       el.className = "inv-item";
-      el.innerHTML = `<div class="name">${def.name}</div><div class="qty">${def.rarity} · ×${n}</div>`;
+      el.innerHTML = `<img alt="" src="${itemIcon(def)}"/><div><div class="name">${def.name}</div><div class="qty">${def.rarity} · ×${n}</div></div>`;
       el.onclick = () => this.placeOnShelf(id);
       grid.append(el);
     }
   }
 
   private placeOnShelf(id: string | null) {
+    const prev = this.save.displayed[this.shelfIndex];
+    if (prev) this.save.items[prev] = (this.save.items[prev] ?? 0) + 1;
+    if (id) {
+      if ((this.save.items[id] ?? 0) <= 0) return;
+      this.save.items[id]--;
+    }
     this.save.displayed[this.shelfIndex] = id;
     if (this.currentInterior) fillShelf(this.currentInterior, this.save.displayed);
     this.setState("interior");
-    this.audio.chime("ui");
+    this.audio.foley("place");
+    this.persist();
+    if (id) this.advanceIntro(INTRO.shelved, "When you're sleepy, the quilt will keep the morning.");
   }
 
   private pickupDecor(obj: THREE.Object3D) {
@@ -849,6 +938,7 @@ export class Game {
       this.save.items[match.id] = (this.save.items[match.id] ?? 0) + 1;
       this.save.decorations = this.save.decorations.filter((d) => d !== match);
       if (this.currentInterior) rebuildDecor(this.currentInterior, this.save.decorations);
+      this.persist();
     }
     void id;
   }
@@ -866,7 +956,8 @@ export class Game {
     this.save.decorations.push({ id, x, z, rot: f });
     rebuildDecor(this.currentInterior, this.save.decorations);
     this.setState("interior");
-    this.audio.chime("ui");
+    this.audio.foley("place");
+    this.persist();
   }
 
   private dock(islandId: string) {
@@ -878,7 +969,8 @@ export class Game {
     this.eva.group.position.set(beach.x, beach.y, beach.z);
     this.grounded = true;
     this.evaVy = 0;
-    this.audio.chime("ui");
+    this.audio.foley("dock");
+    this.persist();
   }
 
   private moorAt(isl: ReturnType<typeof nearestIsland> | (typeof ISLANDS)[number]) {
@@ -975,6 +1067,10 @@ export class Game {
             ? `Found ${def.name}!`
             : `Picked up ${def.name}`;
     this.toast(toast, "found");
+    this.persist();
+    if (p.id === "intro-cockle" || this.save.introBeat < INTRO.picked) {
+      this.advanceIntro(INTRO.picked, "The red boat is waiting on the water.");
+    }
   }
 
   private updateLootFly(dt: number) {
@@ -1062,6 +1158,15 @@ export class Game {
   private renderInventory() {
     const grid = $("inv-grid");
     grid.innerHTML = "";
+    const hint = $("inv-hint");
+    if (hint) {
+      hint.textContent =
+        this.invTab === "decor"
+          ? this.currentInterior?.id === "home"
+            ? "Tap a piece to set it down where Eva is standing."
+            : "Decor belongs in Eva's cottage."
+          : "Tap a find to turn it in the light.";
+    }
     const entries = Object.entries(this.save.items).filter(([id, n]) => {
       if (n <= 0 || !ITEMS[id]) return false;
       const k = ITEMS[id].kind;
@@ -1075,8 +1180,12 @@ export class Game {
       const def = ITEMS[id];
       const el = document.createElement("button");
       el.className = "inv-item";
-      el.innerHTML = `<div class="name">${def.name}</div><div class="qty">${def.rarity} · ×${n}</div>`;
+      el.innerHTML = `<img alt="" src="${itemIcon(def)}"/><div><div class="name">${def.name}</div><div class="qty">${def.rarity} · ×${n}</div></div>`;
       el.onclick = () => {
+        if (id === "sea_chart") {
+          this.openChart();
+          return;
+        }
         if (this.invTab === "decor" && this.currentInterior?.id === "home") this.placeDecor(id);
         else this.openInspect(id);
       };
@@ -1089,15 +1198,33 @@ export class Game {
     this.dialogueMode = "main";
     this.setState("dialogue");
     const npc = NPCS[id];
+    bumpTalk(this.save, id);
+    if (!this.save.questsHeard.includes(id)) this.save.questsHeard.push(id);
     $("dlg-name").textContent = `${npc.name} · ${npc.species}`;
-    $("dlg-portrait").style.background = `#${npc.color.toString(16).padStart(6, "0")}`;
-    $("dlg-text").textContent = this.isNight() ? npc.nightLine : npc.greeting[Math.floor(Math.random() * npc.greeting.length)];
-    this.drawChoices([
-      { label: "Chat a while", fn: () => this.say(npc.chat[Math.floor(Math.random() * npc.chat.length)]) },
+    const pips = $("dlg-pips");
+    if (pips) pips.textContent = `${npc.pip} ${friendPips(this.save.friendship[id] ?? 0)}`;
+    if (!this.portraits.has(id)) this.portraits.set(id, npcPortrait(id));
+    $("dlg-portrait").style.backgroundImage = `url(${this.portraits.get(id)})`;
+    $("dlg-portrait").style.backgroundColor = "transparent";
+    $("dlg-text").textContent = greetingFor(this.save, id, this.isNight());
+    const choices: { label: string; fn: () => void }[] = [
+      { label: "Chat a while", fn: () => this.say(this.chatLine(id)) },
       { label: "Who are you?", fn: () => this.say(npc.personality) },
       { label: "Trade", fn: () => this.showTrades(id) },
-      { label: "See you on the tide", fn: () => this.setState(this.currentInterior ? "interior" : "world") },
-    ]);
+    ];
+    if (questOpen(this.save, id)) {
+      choices.splice(1, 0, { label: "About that errand…", fn: () => this.say(this.isNight() ? npc.questHint : npc.questOpen) });
+    }
+    choices.push({ label: "See you on the tide", fn: () => this.setState(this.currentInterior ? "interior" : "world") });
+    this.drawChoices(choices);
+    if (id === "mallow") this.advanceIntro(INTRO.mallow);
+    this.persist();
+  }
+
+  private chatLine(id: NpcId) {
+    const npc = NPCS[id];
+    if (questOpen(this.save, id) && Math.random() < 0.45) return npc.questHint;
+    return npc.chat[Math.floor(Math.random() * npc.chat.length)];
   }
 
   private say(text: string) {
@@ -1109,13 +1236,16 @@ export class Game {
   private showTrades(id: NpcId) {
     this.dialogueMode = "trade";
     const npc = NPCS[id];
+    const tier = friendTier(this.save.friendship[id] ?? 0);
     $("dlg-text").textContent = "What shall we swap, then?";
     const choices = npc.trades
       .filter((t) => !(t.once && this.save.tradesDone.includes(t.id)))
+      .filter((t) => tier >= (t.needFriend ?? 0))
       .map((t) => ({
         label: t.label,
         fn: () => this.tryTrade(t),
       }));
+    if (!choices.length) $("dlg-text").textContent = "Nothing to swap just now — come back when the tide's been kinder.";
     choices.push({ label: "Never mind", fn: () => this.openDialogue(id) });
     this.drawChoices(choices);
   }
@@ -1138,7 +1268,21 @@ export class Game {
     if (t.once) this.save.tradesDone.push(t.id);
     if (this.talkingTo) this.save.friendship[this.talkingTo] = (this.save.friendship[this.talkingTo] ?? 0) + 1;
     this.audio.chime("uncommon");
-    this.say(t.success);
+    this.persist();
+    if (this.talkingTo && t.id === NPCS[this.talkingTo].questTrade) {
+      this.say(NPCS[this.talkingTo].questDone + " " + t.success);
+    } else {
+      this.say(t.success);
+    }
+    if (t.id === "mallow-cushion") {
+      this.advanceIntro(INTRO.traded, "Put that cushion on your shelf at home. A house should remember its guests.");
+    }
+    if (t.id === "brine-chart") {
+      this.toast("The chart is yours. Open it from pause, or tap it in the satchel. M to unfold.");
+    }
+    if (this.talkingTo && this.currentInterior) {
+      fillFriendDecor(this.currentInterior, friendTier(this.save.friendship[this.talkingTo] ?? 0));
+    }
   }
 
   private drawChoices(choices: { label: string; fn: () => void }[]) {
@@ -1154,16 +1298,40 @@ export class Game {
 
   private sleep() {
     this.setState("sleeping");
+    this.restoreVisitor();
     this.save.day += 1;
     this.save.time = 0.3;
+    this.save.morningFog = false;
+    this.save.morningEvent = null;
+    const roll = Math.random();
+    let morning = "Morning pours in through the pink windows.";
+    if (roll < 0.2) {
+      this.save.morningEvent = "uncommon";
+      morning = "The beach left an extra blush of scallop overnight.";
+    } else if (roll < 0.32) {
+      this.save.morningEvent = "visitor";
+      const guests: NpcId[] = ["mallow", "brine", "coral", "pebble"];
+      const who = guests[this.save.day % 4];
+      morning = `${NPCS[who].name} left footprints on the home pier — a neighbour came by with the tide.`;
+    } else if (roll < 0.44) {
+      this.save.morningFog = true;
+      this.save.morningEvent = "fog";
+      morning = "A hush of fog sits on the kettle island.";
+    } else if (roll < 0.54) {
+      this.save.morningEvent = "squall";
+      morning = "The wind woke in a mood. Call it to your bow if you sail.";
+    }
     $("sleep-title").textContent = `Day ${this.save.day}`;
     $("sleep-line").textContent = SLEEP_LINES[(this.save.day - 1) % SLEEP_LINES.length];
     this.audio.chime("sleep");
     this.collect.spawn(this.save.collected, this.save.day);
+    if (this.save.morningEvent === "uncommon") this.collect.addExtra(`dawn-${this.save.day}`, "sunset_scallop", 12, 8);
+    this.parkVisitor();
+    this.advanceIntro(INTRO.slept, "Captain Brine at the harbor knows a chart, if the sea starts feeling large.");
     this.persist();
     setTimeout(() => {
       this.setState("interior");
-      this.toast("Morning pours in through the pink windows.");
+      this.toast(morning);
     }, 2600);
   }
 
@@ -1204,6 +1372,8 @@ export class Game {
       wind.classList.toggle("hidden", !this.sailing);
       if (this.sailing) wind.textContent = `Compass ${this.windArrow()} ${this.windLabel()} · tap`;
     }
+    const help = $("hud-help");
+    if (help) help.classList.toggle("hidden", this.save.introBeat >= INTRO.boarded);
     $("touch-decor").classList.toggle("hidden", this.currentInterior?.id !== "home");
     $("touch-look").classList.toggle("hidden", !!this.currentInterior);
     if (this.bannerT > 0) {
@@ -1231,6 +1401,8 @@ export class Game {
     else if (/Pick/i.test(p)) label = "Pick";
     else if (/Dock/i.test(p)) label = "Dock";
     else if (/Board/i.test(p)) label = "Sail";
+    else if (/Listen/i.test(p)) label = "Hear";
+    else if (/Hang|yard hanging/i.test(p)) label = "Hang";
     else if (/Talk/i.test(p)) label = "Talk";
     else if (/Enter/i.test(p)) label = "In";
     else if (/Leave/i.test(p)) label = "Out";
@@ -1254,6 +1426,262 @@ export class Game {
       yaw: this.boatYaw,
     };
     writeSave(this.save);
+  }
+
+  private advanceIntro(beat: number, line?: string) {
+    if (this.save.introBeat >= beat) return;
+    this.save.introBeat = beat;
+    if (line) this.toast(line);
+    this.persist();
+  }
+
+  private updatePorchLamps() {
+    const night = this.isNight();
+    this.world.traverse((o) => {
+      if (o.name === "porch-lamp" && o instanceof THREE.PointLight) o.intensity = night ? 1.15 : 0;
+    });
+  }
+
+  private maybeLookoutHint() {
+    if (!this.spyglass || this.save.lookoutHint || this.currentInterior) return;
+    const look = ISLANDS.find((i) => i.id === "lookout")!;
+    const p = this.eva.group.position;
+    if (Math.hypot(p.x - look.x, p.z - look.z) > look.radius * 0.8) return;
+    if (p.y < heightAt(look.x, look.z) - 0.4) return;
+    this.save.lookoutHint = true;
+    this.toast("A sparkle winks far to the north-east — Whisper Reef, shy as ever.");
+    this.persist();
+  }
+
+  private parkVisitor() {
+    this.restoreVisitor();
+    if (this.save.morningEvent !== "visitor") return;
+    const guests: NpcId[] = ["mallow", "brine", "coral", "pebble"];
+    const who = guests[this.save.day % 4];
+    const mesh = this.npcs.get(who);
+    if (!mesh) return;
+    mesh.userData.homeX = mesh.position.x;
+    mesh.userData.homeZ = mesh.position.z;
+    mesh.userData.visiting = true;
+    const home = ISLANDS[0];
+    const ang = PIER_ANG.home;
+    const beach = beachPoint(home, home.x + Math.cos(ang) * 40, home.z + Math.sin(ang) * 40);
+    mesh.position.set(beach.x, heightAt(beach.x, beach.z), beach.z);
+  }
+
+  private restoreVisitor() {
+    this.npcs.forEach((mesh) => {
+      if (!mesh.userData.visiting) return;
+      const x = mesh.userData.homeX as number;
+      const z = mesh.userData.homeZ as number;
+      mesh.position.set(x, heightAt(x, z), z);
+      mesh.userData.visiting = false;
+    });
+  }
+
+  private maybeVisitorGoHome() {
+    if (this.save.morningEvent !== "visitor" || !this.isNight()) return;
+    this.restoreVisitor();
+    this.save.morningEvent = null;
+    this.persist();
+  }
+
+  private listenReef() {
+    this.save.reefListened = true;
+    this.audio.chime("rare");
+    this.toast("The water talks in a small voice. It remembers every shell you ever picked up.");
+    this.persist();
+  }
+
+  private rotateNearestDecor() {
+    if (!this.currentInterior) return;
+    const p = this.eva.group.position;
+    let best = this.save.decorations[0];
+    let bd = 1.6;
+    for (const d of this.save.decorations) {
+      const dist = Math.hypot(p.x - d.x, p.z - d.z);
+      if (dist < bd) {
+        bd = dist;
+        best = d;
+      }
+    }
+    if (!best || bd >= 1.6) return;
+    best.rot += Math.PI / 4;
+    rebuildDecor(this.currentInterior, this.save.decorations);
+    this.audio.foley("place");
+    this.persist();
+  }
+
+  private openGift(id: NpcId) {
+    this.giftTarget = id;
+    const title = document.querySelector("#shelf-picker h2");
+    const muted = document.querySelector("#shelf-picker .muted");
+    if (title) title.textContent = `A gift for ${NPCS[id].name}`;
+    if (muted) muted.textContent = this.save.npcGifts[id] ? "Leave a new find, or take the old one home." : "Choose a shell or stone to leave on their table.";
+    this.setState("gift");
+    const grid = $("shelf-grid");
+    grid.innerHTML = "";
+    if (this.save.npcGifts[id]) {
+      const take = document.createElement("button");
+      take.className = "inv-item";
+      take.innerHTML = `<div class="name">Take the gift back</div>`;
+      take.onclick = () => this.leaveGift(null);
+      grid.append(take);
+    }
+    const finds = Object.entries(this.save.items).filter(([item, n]) => n > 0 && (ITEMS[item]?.kind === "shell" || ITEMS[item]?.kind === "rock"));
+    for (const [item, n] of finds) {
+      const def = ITEMS[item];
+      const el = document.createElement("button");
+      el.className = "inv-item";
+      el.innerHTML = `<img alt="" src="${itemIcon(def)}"/><div><div class="name">${def.name}</div><div class="qty">×${n}</div></div>`;
+      el.onclick = () => this.leaveGift(item);
+      grid.append(el);
+    }
+  }
+
+  private leaveGift(id: string | null) {
+    const who = this.giftTarget;
+    if (!who || who === "yard") return;
+    const prev = this.save.npcGifts[who];
+    if (prev) this.save.items[prev] = (this.save.items[prev] ?? 0) + 1;
+    if (id) {
+      if ((this.save.items[id] ?? 0) <= 0) return;
+      this.save.items[id]--;
+      this.save.friendship[who] = (this.save.friendship[who] ?? 0) + 1;
+    }
+    this.save.npcGifts[who] = id;
+    if (this.currentInterior) {
+      fillNpcGift(this.currentInterior, id);
+      fillFriendDecor(this.currentInterior, friendTier(this.save.friendship[who] ?? 0));
+    }
+    this.giftTarget = null;
+    this.setState("interior");
+    this.audio.chime("uncommon");
+    this.persist();
+    this.toast(id ? `${NPCS[who].name} will keep that safe.` : "You tuck it back into the satchel.");
+  }
+
+  private openYard() {
+    if (this.save.yardItem) {
+      this.save.items[this.save.yardItem] = (this.save.items[this.save.yardItem] ?? 0) + 1;
+      this.save.yardItem = null;
+      this.refreshYard();
+      this.persist();
+      this.audio.foley("place");
+      this.toast("Down from the line and back in the bag.");
+      return;
+    }
+    this.giftTarget = "yard";
+    const title = document.querySelector("#shelf-picker h2");
+    const muted = document.querySelector("#shelf-picker .muted");
+    if (title) title.textContent = "Hang on the line";
+    if (muted) muted.textContent = "A little outdoor souvenir.";
+    this.setState("gift");
+    const grid = $("shelf-grid");
+    grid.innerHTML = "";
+    const dec = Object.entries(this.save.items).filter(([item, n]) => n > 0 && ITEMS[item]?.kind === "decor");
+    for (const [item, n] of dec) {
+      const def = ITEMS[item];
+      const el = document.createElement("button");
+      el.className = "inv-item";
+      el.innerHTML = `<img alt="" src="${itemIcon(def)}"/><div><div class="name">${def.name}</div><div class="qty">×${n}</div></div>`;
+      el.onclick = () => this.hangYard(item);
+      grid.append(el);
+    }
+  }
+
+  private hangYard(id: string) {
+    if ((this.save.items[id] ?? 0) <= 0) return;
+    this.save.items[id]--;
+    this.save.yardItem = id;
+    this.giftTarget = null;
+    this.refreshYard();
+    this.setState("world");
+    this.audio.foley("place");
+    this.persist();
+  }
+
+  private refreshYard() {
+    if (this.yardVis) {
+      this.world.remove(this.yardVis);
+      this.yardVis = null;
+    }
+    if (!this.save.yardItem) return;
+    const y = yardPoint();
+    const vis = createItemVisual(this.save.yardItem);
+    vis.position.set(y.x, heightAt(y.x, y.z) + 1.05, y.z);
+    vis.scale.setScalar(0.85);
+    this.world.add(vis);
+    this.yardVis = vis;
+  }
+
+  private openChart() {
+    if (!hasChart(this.save)) {
+      this.toast("Brine keeps the charts. A pearl mussel might loosen one.");
+      return;
+    }
+    this.setState("chart");
+  }
+
+  private drawChart() {
+    const canvas = $<HTMLCanvasElement>("chart-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.fillStyle = "#e8c99a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#c48a4a";
+    ctx.lineWidth = 8;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.fillStyle = "#7eb7d9";
+    ctx.globalAlpha = 0.35;
+    for (let i = 0; i < 18; i++) {
+      ctx.beginPath();
+      ctx.arc(60 + (i * 97) % (w - 80), 40 + (i * 53) % (h - 80), 18 + (i % 5) * 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const xs = ISLANDS.map((i) => i.x);
+    const zs = ISLANDS.map((i) => i.z);
+    const minX = Math.min(...xs) - 40;
+    const maxX = Math.max(...xs) + 40;
+    const minZ = Math.min(...zs) - 40;
+    const maxZ = Math.max(...zs) + 40;
+    const sx = (x: number) => 50 + ((x - minX) / (maxX - minX)) * (w - 100);
+    const sy = (z: number) => 40 + ((z - minZ) / (maxZ - minZ)) * (h - 90);
+    for (const isl of ISLANDS) {
+      const known = this.save.discovered.includes(isl.id);
+      const rumor = !known && (isl.id === "reef" || isl.id === "lookout");
+      ctx.beginPath();
+      ctx.arc(sx(isl.x), sy(isl.z), known ? 16 : 10, 0, Math.PI * 2);
+      ctx.fillStyle = known ? "#6fbf8a" : rumor ? "#c45a6a" : "#bba48a";
+      ctx.fill();
+      ctx.fillStyle = "#3a2412";
+      ctx.font = "16px Nunito, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(known ? isl.name : rumor ? "X" : "?", sx(isl.x), sy(isl.z) - 20);
+    }
+    const bx = this.sailing ? this.boat.group.position.x : this.eva.group.position.x;
+    const bz = this.sailing ? this.boat.group.position.z : this.eva.group.position.z;
+    ctx.fillStyle = "#e23a3a";
+    ctx.beginPath();
+    ctx.moveTo(sx(bx), sy(bz) - 10);
+    ctx.lineTo(sx(bx) + 7, sy(bz) + 8);
+    ctx.lineTo(sx(bx) - 7, sy(bz) + 8);
+    ctx.closePath();
+    ctx.fill();
+    const rumor = $("chart-rumor");
+    if (rumor) {
+      const bits: string[] = [];
+      bits.push(
+        this.save.discovered.includes("reef")
+          ? "The reef has a name now. Whisper. You were there."
+          : "X marks a whisper due north. Sail till the water turns shy.",
+      );
+      if (!this.save.discovered.includes("lookout")) bits.push("A steep hat of stone sits west of home. Climb. Look.");
+      rumor.textContent = bits.join(" ");
+    }
   }
 
   private render() {

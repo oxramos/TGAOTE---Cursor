@@ -19,6 +19,7 @@ export type TradeRecipe = {
   want: { item: string; count: number }[];
   give: { item?: string; count?: number; treats?: number };
   once?: boolean;
+  needFriend?: number;
   label: string;
   success: string;
 };
@@ -32,7 +33,9 @@ export type GameState =
   | "inventory"
   | "shelf"
   | "paused"
-  | "sleeping";
+  | "sleeping"
+  | "chart"
+  | "gift";
 
 export type SaveData = {
   day: number;
@@ -47,4 +50,14 @@ export type SaveData = {
   friendship: Record<string, number>;
   eva: { x: number; z: number; sailing: boolean };
   boat: { x: number; z: number; yaw: number };
+  introBeat: number;
+  npcGifts: Record<NpcId, string | null>;
+  questsHeard: NpcId[];
+  talkedDay: Record<string, number>;
+  volume: number;
+  morningFog: boolean;
+  morningEvent: string | null;
+  lookoutHint: boolean;
+  yardItem: string | null;
+  reefListened: boolean;
 };

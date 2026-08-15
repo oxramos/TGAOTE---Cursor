@@ -347,6 +347,51 @@ export const ITEMS: Record<string, ItemDef> = {
     color: 0xfff6ea,
     accent: 0x7ec8e8,
   },
+  knitted_blanket: {
+    id: "knitted_blanket",
+    name: "Meadow Blanket",
+    kind: "decor",
+    rarity: "rare",
+    description: "Mallow's baby-blanket stitch, scaled up for a chick who sails.",
+    color: 0xf4c6d7,
+    accent: 0x7ec8e8,
+  },
+  heart_pillow: {
+    id: "heart_pillow",
+    name: "Heart Pillow",
+    kind: "decor",
+    rarity: "rare",
+    description: "A plump pink heart. It knows when you come home.",
+    color: 0xe56b9e,
+    accent: 0xfff6ea,
+  },
+  specimen_jar: {
+    id: "specimen_jar",
+    name: "Specimen Jar",
+    kind: "decor",
+    rarity: "rare",
+    description: "Pebble labelled it 'friend-shaped'. The jar is empty. That's the point.",
+    color: 0x9ed96a,
+    accent: 0xf4efe6,
+  },
+  stall_banner: {
+    id: "stall_banner",
+    name: "Stall Banner",
+    kind: "decor",
+    rarity: "rare",
+    description: "Coral painted a tiny red boat on it. The boat is winking.",
+    color: 0xe23a3a,
+    accent: 0xf2c14e,
+  },
+  helm_wheel: {
+    id: "helm_wheel",
+    name: "Spare Helm",
+    kind: "decor",
+    rarity: "rare",
+    description: "Brine swears this wheel once steered a cloud. It steers a cottage now.",
+    color: 0x8a5a32,
+    accent: 0xc48a4a,
+  },
 };
 
 export const STARTING_DECOR = ["potted_clover"];
@@ -460,7 +505,14 @@ export type NpcDef = {
   personality: string;
   greeting: string[];
   chat: string[];
+  warm: string[];
+  close: string[];
   nightLine: string;
+  questTrade: string;
+  questOpen: string;
+  questHint: string;
+  questDone: string;
+  pip: string;
   trades: TradeRecipe[];
 };
 
@@ -481,8 +533,22 @@ export const NPCS: Record<NpcId, NpcDef> = {
       "I count waves instead of sheep, some evenings… they never all land.",
       "If you find a scallop the colour of sunset, I'll knit it a cousin.",
       "Your boat is very brave. Red things often are.",
+      "Meadow Isle is west of the kettle island. You found me. The kettle is smug.",
+    ],
+    warm: [
+      "Eva. The grass stood up when it heard your boat. Sit. I've saved the soft patch.",
+      "You keep coming back. That's a kind of knitting, too.",
+    ],
+    close: [
+      "Little chickadee. If the sea ever feels too wide, there is always a cup here with your name on the steam.",
+      "I started a blanket with a red boat in it. The boat keeps sailing off the edge. Like someone I know.",
     ],
     nightLine: "Shh… the yarn is dreaming. So am I, mostly.",
+    questTrade: "mallow-lantern",
+    questOpen: "If you ever find a candy conch — pink as a pastry — I'll knit a baby blanket around the idea of you.",
+    questHint: "Candy conches hide in the meadow grass. They look like sweets the tide forgot.",
+    questDone: "The blanket's in your satchel. Put it somewhere the morning can find it.",
+    pip: "🧶",
     trades: [
       {
         id: "mallow-cushion",
@@ -490,13 +556,14 @@ export const NPCS: Record<NpcId, NpcDef> = {
         give: { item: "knitted_cushion", count: 1 },
         once: true,
         label: "Trade 2 striped whelks for a cushion",
-        success: "I… may have added a spare heart into the stitches. Don't tell the yarn.",
+        success: "I… may have added a spare heart into the stitches. Put it on your shelf at home. A house should remember its guests.",
       },
       {
         id: "mallow-lantern",
         want: [{ item: "candy_conch", count: 1 }],
         give: { item: "wool_lantern", count: 1 },
         once: true,
+        needFriend: 1,
         label: "Trade a candy conch for a wool lantern",
         success: "Now your house can blush after dark… that's all I wanted.",
       },
@@ -505,8 +572,27 @@ export const NPCS: Record<NpcId, NpcDef> = {
         want: [{ item: "sunset_scallop", count: 1 }],
         give: { item: "flower_stool", count: 1 },
         once: true,
+        needFriend: 2,
         label: "Trade a sunset scallop for a flower stool",
         success: "A seat for tiny brave bones. Tea optional. Tea recommended.",
+      },
+      {
+        id: "mallow-blanket",
+        want: [{ item: "tiny_cowrie", count: 3 }],
+        give: { item: "knitted_blanket", count: 1 },
+        once: true,
+        needFriend: 2,
+        label: "Trade 3 tiny cowries for a meadow blanket",
+        success: "Wrap up when the wind tells stories. The blanket already knows the ending.",
+      },
+      {
+        id: "mallow-pillow",
+        want: [{ item: "heart_conch", count: 1 }],
+        give: { item: "heart_pillow", count: 1 },
+        once: true,
+        needFriend: 3,
+        label: "Show Mallow the Heart Conch",
+        success: "Oh. Oh, Eva. I knitted a pillow that can almost hold that. Almost.",
       },
     ],
   },
@@ -527,13 +613,34 @@ export const NPCS: Record<NpcId, NpcDef> = {
       "Starstone is not from this sea. I have a theory. It involves a very clumsy constellation.",
       "Your tiara — relic? Crown? Fashion? I have three labels and no courage to ask.",
     ],
+    warm: [
+      "Field operative Eva, returning with data. Also with friendship. I have a column for that now.",
+      "I reclassified you from 'visitor' to 'recurring phenomenon'. The library approved.",
+    ],
+    close: [
+      "If the starstone ever feels lonely, bring it here. I talk to rocks. They talk back. Slowly.",
+      "Specimen: friend. Status: verified. Please do not file yourself under 'lost'.",
+    ],
     nightLine: "The archives close at moonrise. I do not. The archives and I are negotiating.",
+    questTrade: "pebble-notes",
+    questOpen: "If you find a starstone — not from this sea — I must classify it. I have three labels and no specimen.",
+    questHint: "Starstone sits on the high spine of Stone Isle. It looks like a clumsy constellation landed.",
+    questDone: "Citation complete. My field notes are yours. Don't eat the diagrams.",
+    pip: "🪨",
     trades: [
+      {
+        id: "pebble-appraise",
+        want: [{ item: "striped_agate", count: 1 }],
+        give: { treats: 3 },
+        label: "Let Pebble appraise a striped agate",
+        success: "Banded chalcedony, beach-tumbled, grade: charming. Treats for the courier.",
+      },
       {
         id: "pebble-notes",
         want: [{ item: "starstone", count: 1 }],
         give: { item: "geology_book", count: 1 },
         once: true,
+        needFriend: 1,
         label: "Show Pebble a starstone",
         success: "I— I need to sit down. On a book. Take my field notes. You've earned a citation, Eva.",
       },
@@ -542,15 +649,18 @@ export const NPCS: Record<NpcId, NpcDef> = {
         want: [{ item: "rose_quartz", count: 1 }, { item: "smooth_pebble", count: 1 }],
         give: { item: "moss_agate", count: 1 },
         once: true,
+        needFriend: 2,
         label: "Trade rose quartz & a pebble for moss agate",
         success: "A forest, fossilised in patience. Don't put it in soup. I've checked. For science.",
       },
       {
-        id: "pebble-appraise",
-        want: [{ item: "striped_agate", count: 1 }],
-        give: { treats: 3 },
-        label: "Let Pebble appraise a striped agate",
-        success: "Banded chalcedony, beach-tumbled, grade: charming. Treats for the courier.",
+        id: "pebble-jar",
+        want: [{ item: "tide_crystal", count: 1 }],
+        give: { item: "specimen_jar", count: 1 },
+        once: true,
+        needFriend: 3,
+        label: "Show Pebble a tide crystal",
+        success: "I'm putting this in a jar labelled 'proof that Eva exists'. The jar is mostly feelings.",
       },
     ],
   },
@@ -571,7 +681,20 @@ export const NPCS: Record<NpcId, NpcDef> = {
       "Rare shells want to be seen. That's why they sparkle like gossips.",
       "If you've treats, I've rugs. If you've rugs, you've taste.",
     ],
+    warm: [
+      "Awk! Regular customer! That's a song. That's a stall with a heartbeat.",
+      "Eva! I saved you the sparkliest gossip. It cost me nothing. That's how you know it's good.",
+    ],
+    close: [
+      "If the stall ever feels too loud, you can sit on the crate and be the quiet. I'll sell around you.",
+      "Fair trade is a kind of music. You, chick, are in the chorus now.",
+    ],
     nightLine: "Shop's shut! Dreams are running a two-for-one. Awk. That was a joke. Mostly.",
+    questTrade: "coral-mobile",
+    questOpen: "Bring me a rainbow abalone and I'll hang it in the stall window. Colour like that wants an audience.",
+    questHint: "Rainbow abalone loves the warm sand of Coral Cay. It gossips in oil-slick light.",
+    questDone: "The window's showing off. Take the mobile — let your cottage gossip too.",
+    pip: "🪶",
     trades: [
       {
         id: "coral-treats",
@@ -585,6 +708,7 @@ export const NPCS: Record<NpcId, NpcDef> = {
         want: [{ item: "rainbow_abalone", count: 1 }],
         give: { item: "hanging_mobile", count: 1 },
         once: true,
+        needFriend: 1,
         label: "Trade a rainbow abalone for a mobile",
         success: "I'll miss that colour. Hang it where the draft can brag.",
       },
@@ -593,8 +717,18 @@ export const NPCS: Record<NpcId, NpcDef> = {
         want: [{ item: "blue_limpet", count: 1 }],
         give: { item: "tropical_rug", count: 1, treats: -6 },
         once: true,
+        needFriend: 2,
         label: "Trade a blue limpet + 6 treats for a rug",
         success: "A floor worth taking shoes off for. You don't wear shoes. Even better!",
+      },
+      {
+        id: "coral-banner",
+        want: [{ item: "star_sand_dollar", count: 1 }],
+        give: { item: "stall_banner", count: 1 },
+        once: true,
+        needFriend: 3,
+        label: "Trade a star sand dollar for a stall banner",
+        success: "I painted your boat on it. Tiny. Winking. Don't tell the boat, it'll get vain.",
       },
     ],
   },
@@ -614,8 +748,22 @@ export const NPCS: Record<NpcId, NpcDef> = {
       "Keep your spyglass handy. Pretty things hide in the corners of the sea on purpose.",
       "There's a reef due north that doesn't like to be found. That's how you know it's worth it.",
       "Your boat's heart on the bow? That's not decoration. That's a promise. I should know. I paint promises badly.",
+      "Lookout Stack wears a steep hat west of home. Climb it. Look. The sea likes to be seen seeing.",
+    ],
+    warm: [
+      "Aye, the little admiral. The dock asked after you. I told it you'd be along.",
+      "Wind treating you fair? If not, call it to your bow. That's not cheating. That's manners.",
+    ],
+    close: [
+      "If I ever don't come back from a story, check the hammock first. Then the sea. Then the hammock again.",
+      "You're in the logbook now, Eva. Not as cargo. As crew. Tiny crew. Best crew.",
     ],
     nightLine: "Lantern's low. Even captains snore. Don't tell the tide.",
+    questTrade: "brine-chart",
+    questOpen: "Bring a pearl mussel and I'll give you a chart. X marks a whisper due north — a reef that doesn't like to be found.",
+    questHint: "Pearl mussels like the quiet water around Brineharbor. Inside: moonlight. Outside: wet slate.",
+    questDone: "Unfold it when the sea feels large. Sail north till the water turns shy. And Eva — come back.",
+    pip: "⚓",
     trades: [
       {
         id: "brine-chart",
@@ -623,23 +771,34 @@ export const NPCS: Record<NpcId, NpcDef> = {
         give: { item: "sea_chart", count: 1 },
         once: true,
         label: "Trade a pearl mussel for a sea chart",
-        success: "X marks a whisper. Sail north till the water turns shy. And Eva — come back, that's an order dressed as a wish.",
-      },
-      {
-        id: "brine-lantern",
-        want: [{ item: "moon_nautilus", count: 1 }],
-        give: { item: "captain_lantern", count: 1 },
-        once: true,
-        label: "Trade a moon nautilus for a lantern",
-        success: "Used to hang this on the prow. She's yours. May she gossip about safe harbors.",
+        success: "X marks a whisper. Sail north till the water turns shy. Unfold the chart whenever the horizon gets ideas. And Eva — come back, that's an order dressed as a wish.",
       },
       {
         id: "brine-tea",
         want: [{ item: "beach_glass", count: 1 }],
         give: { item: "tea_set", count: 1 },
         once: true,
+        needFriend: 1,
         label: "Trade beach glass for a tea set",
         success: "Won it off a gull in a staring contest. The gull blinked. Honourable.",
+      },
+      {
+        id: "brine-lantern",
+        want: [{ item: "moon_nautilus", count: 1 }],
+        give: { item: "captain_lantern", count: 1 },
+        once: true,
+        needFriend: 2,
+        label: "Trade a moon nautilus for a lantern",
+        success: "Used to hang this on the prow. She's yours. May she gossip about safe harbors.",
+      },
+      {
+        id: "brine-helm",
+        want: [{ item: "wind_tear", count: 1 }],
+        give: { item: "helm_wheel", count: 1 },
+        once: true,
+        needFriend: 3,
+        label: "Show Brine a Wind's Tear",
+        success: "Aye. That's a sky-drop. Take the spare helm. Cottage could use a little steering.",
       },
     ],
   },
@@ -651,6 +810,8 @@ export const SLEEP_LINES = [
   "The islands shuffle their treasures like a kind dealer.",
   "Mallow knits a cloud and accidentally a weather.",
   "Pebble files the moon under 'pending'.",
+  "Brine's chart grows a new X while nobody is looking.",
+  "Coral prices the sunrise and decides it isn't for sale.",
 ];
 
 export function rarityRank(r: ItemDef["rarity"]): number {

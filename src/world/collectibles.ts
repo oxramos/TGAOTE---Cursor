@@ -16,6 +16,7 @@ export type Pickup = {
 };
 
 const FIXED: { id: string; item: string; x: number; z: number }[] = [
+  { id: "intro-cockle", item: "white_cockle", x: 11.5, z: 14.2 },
   { id: "leg-heart", item: "heart_conch", x: 16, z: 166 },
   { id: "leg-prism", item: "prismatic_spiral", x: -168, z: -28 },
   { id: "leg-opal", item: "dawn_opal", x: 148, z: 58 },
@@ -32,6 +33,7 @@ const FIXED: { id: string; item: string; x: number; z: number }[] = [
   { id: "unc-turban", item: "spiral_turban", x: 108, z: -96 },
   { id: "unc-quartz", item: "rose_quartz", x: 4, z: -6 },
   { id: "unc-amber", item: "amber_droplet", x: -118, z: 68 },
+  { id: "unc-granite", item: "sea_granite", x: -164, z: -32 },
 ];
 
 const COMMONS = [
@@ -78,9 +80,10 @@ export class CollectibleWorld {
     const y = Math.max(heightAt(x, z), 0.12) + 0.25;
     const mesh = new THREE.Group();
     const vis = createItemVisual(item);
-    vis.scale.setScalar(def.rarity === "legendary" ? 1.35 : 1);
+    vis.scale.setScalar(def.rarity === "legendary" ? 1.35 : id === "intro-cockle" ? 1.2 : 1);
     mesh.add(vis);
-    mesh.add(createAura(def));
+    const aura = createAura(id === "intro-cockle" ? { ...def, rarity: "uncommon", glow: 0xfff1a8 } : def);
+    mesh.add(aura);
     mesh.position.set(x, y, z);
     mesh.userData = { pickupId: id, item };
     this.group.add(mesh);
@@ -120,7 +123,8 @@ export class CollectibleWorld {
     p.taken = true;
   }
 
-  def(p: Pickup): ItemDef {
-    return ITEMS[p.item];
+  addExtra(id: string, item: string, x: number, z: number) {
+    if (this.pickups.some((p) => p.id === id)) return;
+    this.addPickup(id, item, x, z);
   }
 }

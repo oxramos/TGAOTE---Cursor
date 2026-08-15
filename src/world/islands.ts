@@ -11,6 +11,8 @@ export type HouseAnchor = {
   yaw: number;
 };
 
+const LAND = 0.16;
+
 const HOUSE_LAYOUT: Record<string, { kind: HouseKind; ox: number; oz: number; yaw: number; pad: number }> = {
   home: { kind: "home", ox: -8, oz: -10, yaw: 0.42, pad: 7.6 },
   meadow: { kind: "mallow", ox: -7, oz: -6, yaw: 0.2, pad: 6.4 },
@@ -19,7 +21,14 @@ const HOUSE_LAYOUT: Record<string, { kind: HouseKind; ox: number; oz: number; ya
   harbor: { kind: "brine", ox: -5, oz: 11, yaw: 3.15, pad: 6.6 },
 };
 
-const LAND = 0.16;
+export function yardPoint() {
+  const layout = HOUSE_LAYOUT.home;
+  const isl = ISLANDS[0];
+  return {
+    x: isl.x + layout.ox - 4.5 + 1.6,
+    z: isl.z + layout.oz + 3.2 + 0.2,
+  };
+}
 
 export function coastRadius(isl: IslandDef, ang: number): number {
   const s = isl.seed * 0.17;
@@ -169,6 +178,9 @@ export function beachPoint(isl: IslandDef, fromX: number, fromZ: number): THREE.
 export const PIER_ANG: Record<string, number> = {
   home: 0.32,
   harbor: 1.55,
+  meadow: 2.4,
+  stone: -0.55,
+  palm: 3.4,
 };
 
 export function houseWorldOffset(h: { position: THREE.Vector3; yaw: number }, lx: number, lz: number) {
@@ -440,7 +452,12 @@ function landmark(scene: THREE.Scene, isl: IslandDef) {
   if (isl.biome === "harbor") {
     scene.add(makePier(isl, 1.55));
   }
+  if (isl.biome === "meadow") scene.add(makePier(isl, 2.4));
+  if (isl.biome === "stone") scene.add(makePier(isl, -0.55));
+  if (isl.biome === "palm") scene.add(makePier(isl, 3.4));
+  if (isl.biome === "reef") scene.add(makeReefDressing(isl));
   if (isl.biome === "rocks") {
+    scene.add(makeLookoutDressing(isl));
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
       const r = 3.2 + i * 0.4;
@@ -451,9 +468,11 @@ function landmark(scene: THREE.Scene, isl: IslandDef) {
 
 function makeClothesline(isl: IslandDef): THREE.Group {
   const g = new THREE.Group();
+  g.name = "clothesline";
   const hx = isl.x + HOUSE_LAYOUT.home.ox - 4.5;
   const hz = isl.z + HOUSE_LAYOUT.home.oz + 3.2;
   const y = islandHeight(isl, hx, hz);
+  g.userData.yard = { x: hx + 1.6, z: hz + 0.2, y };
   g.add(cylPost(hx, y, hz));
   g.add(cylPost(hx + 3.2, y, hz + 0.4));
   const line = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 3.25, 4), toon(0xfff6ea));
@@ -468,6 +487,59 @@ function makeClothesline(isl: IslandDef): THREE.Group {
     cloth.rotation.y = 0.2;
     g.add(cloth);
   });
+  const hook = new THREE.Group();
+  hook.name = "yard-hook";
+  hook.position.set(hx + 1.6, y + 0.2, hz + 0.2);
+  g.add(hook);
+  return g;
+}
+
+function makeReefDressing(isl: IslandDef): THREE.Group {
+  const g = new THREE.Group();
+  g.name = "whisper-reef";
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const r = 4 + (i % 2) * 2.2;
+    const x = isl.x + Math.cos(a) * r;
+    const z = isl.z + Math.sin(a) * r;
+    const y = islandHeight(isl, x, z);
+    const pool = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.06, 12), toon(0x3a90d4));
+    pool.position.set(x, y + 0.04, z);
+    g.add(pool);
+    const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.03, 12), toon(0x7ec8e8));
+    glass.position.set(x, y + 0.08, z);
+    g.add(glass);
+  }
+  const rib = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.18, 0.35), toon(0xd9c4a0));
+  rib.position.set(isl.x + 2.2, islandHeight(isl, isl.x + 2.2, isl.z - 1) + 0.22, isl.z - 1);
+  rib.rotation.y = 0.4;
+  rib.rotation.z = 0.08;
+  g.add(rib);
+  const rib2 = rib.clone();
+  rib2.position.set(isl.x + 1.4, rib.position.y + 0.35, isl.z - 0.4);
+  rib2.rotation.z = 0.35;
+  g.add(rib2);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 6), toon(PALETTE.woodDeep));
+  post.position.set(isl.x - 1.2, islandHeight(isl, isl.x - 1.2, isl.z + 2) + 0.7, isl.z + 2);
+  post.rotation.z = 0.5;
+  g.add(post);
+  return g;
+}
+
+function makeLookoutDressing(isl: IslandDef): THREE.Group {
+  const g = new THREE.Group();
+  g.name = "lookout-stack";
+  const y = islandHeight(isl, isl.x, isl.z);
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.8, 8), toon(PALETTE.woodDeep));
+  post.position.set(isl.x + 0.4, y + 0.9, isl.z + 0.2);
+  g.add(post);
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), toon(0xc0d8f0, { emissive: 0x7ec8e8 }));
+  glass.position.set(isl.x + 0.4, y + 1.85, isl.z + 0.2);
+  g.add(glass);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 6, 14), toon(PALETTE.wood));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.set(isl.x + 0.4, y + 1.15, isl.z + 0.2);
+  g.add(ring);
   return g;
 }
 

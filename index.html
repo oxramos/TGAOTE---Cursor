@@ -25,7 +25,6 @@
       <div id="title-screen" class="screen">
         <div class="title-sky">
           <div class="title-stars"></div>
-          <div class="title-boat-icon">⛵</div>
           <div class="title-feather left"></div>
           <div class="title-feather right"></div>
           <div class="title-cloud">
@@ -36,16 +35,15 @@
         <div class="title-waves"></div>
         <div class="title-panel">
           <p>
-            Tibu-Eva is a young chick excited to explore the high seas in her red boat.
-            Eva lives on an island collecting treasures and treats. She travels back and
-            forth between many islands and has soaring adventures along the way.
+            A tiny chick in a cherry-red boat, a handful of islands, and the neighbours who live on them.
+            Collect shells, bring gifts home, and sleep till morning.
           </p>
           <div class="title-actions">
             <button id="btn-new" class="btn primary">Set sail</button>
             <button id="btn-continue" class="btn" hidden>Continue</button>
           </div>
-          <p class="title-hint desktop">WASD to move · at sea W/S throttle · C compass · Space to jump · E to interact</p>
-          <p class="title-hint touch">Stick to move · at sea up/down is throttle · tap Compass for a tailwind · Jump · Go</p>
+          <p class="title-hint desktop">WASD to move · E to interact · C compass at sea · Tab satchel</p>
+          <p class="title-hint touch">Stick to move · Go to interact · Compass for a tailwind</p>
         </div>
       </div>
 
@@ -60,8 +58,8 @@
         <div id="hud-prompt" class="hud-prompt hidden"></div>
         <div id="banner" class="banner hidden"></div>
         <div class="hud-bottom">
-          <div class="hud-help">
-            E pick up · Space jump · W/S sail · A/D helm · C compass · F spyglass · Tab satchel · Esc pause
+          <div class="hud-help" id="hud-help">
+            E to pick up · the rest will wait until you need it
           </div>
         </div>
         <div id="touch-hud" class="touch-hud">
@@ -89,6 +87,10 @@
         <div class="panel">
           <h2>Paused</h2>
           <p>The sea can wait a moment.</p>
+          <label class="vol-row">Volume
+            <input type="range" id="vol-slider" min="0" max="100" value="70" />
+          </label>
+          <button id="btn-chart" class="btn" hidden>Sea chart</button>
           <button id="btn-resume" class="btn primary">Keep exploring</button>
           <button id="btn-save" class="btn">Save game</button>
           <button id="btn-title" class="btn">Return to title</button>
@@ -100,6 +102,7 @@
           <div class="dialogue-portrait" id="dlg-portrait"></div>
           <div class="dialogue-body">
             <div class="dialogue-name" id="dlg-name"></div>
+            <div class="dlg-pips" id="dlg-pips"></div>
             <p id="dlg-text"></p>
             <div id="dlg-choices" class="dialogue-choices"></div>
           </div>
@@ -128,7 +131,7 @@
             <button class="tab active" data-tab="finds">Finds</button>
             <button class="tab" data-tab="decor">Decor</button>
           </div>
-          <p class="muted">Tap a find to turn it in the light. Pickups on the beach just hop into the satchel.</p>
+          <p class="muted" id="inv-hint">Tap a find to turn it in the light.</p>
           <div id="inv-grid" class="inv-grid"></div>
         </div>
       </div>
@@ -139,6 +142,15 @@
           <p class="muted">Choose a treasure to display in this nook.</p>
           <div id="shelf-grid" class="inv-grid"></div>
           <button id="btn-close-shelf" class="btn">Cancel</button>
+        </div>
+      </div>
+
+      <div id="chart-screen" class="screen hidden">
+        <div class="panel wide chart-panel">
+          <h2>Chart of Quiet Waters</h2>
+          <canvas id="chart-canvas" width="720" height="460"></canvas>
+          <p class="muted" id="chart-rumor"></p>
+          <button id="btn-close-chart" class="btn">Fold the chart</button>
         </div>
       </div>
 

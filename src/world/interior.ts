@@ -11,7 +11,8 @@ export type InteriorInteract =
   | { type: "exit" }
   | { type: "sleep" }
   | { type: "shelf"; index: number }
-  | { type: "npc"; id: NpcId };
+  | { type: "npc"; id: NpcId }
+  | { type: "gift"; id: NpcId };
 
 export type InteriorRoom = {
   id: HouseKind;
@@ -22,6 +23,8 @@ export type InteriorRoom = {
   shelfAnchors: THREE.Object3D[];
   decorRoot: THREE.Group;
   npcAnchor: THREE.Vector3;
+  giftAnchor: THREE.Object3D | null;
+  friendRoot: THREE.Group;
 };
 
 const WALLS: Record<HouseKind, { wall: number; floor: number; trim: number }> = {
@@ -115,15 +118,36 @@ function windowView(kind: "home" | "meadow" | "stone" | "palm" | "harbor" = "hom
   return tex;
 }
 
+type InteriorDraft = Omit<InteriorRoom, "giftAnchor" | "friendRoot">;
+
 export function buildInterior(kind: HouseKind): InteriorRoom {
-  if (kind === "home") return homeInterior();
-  if (kind === "mallow") return mallowInterior();
-  if (kind === "pebble") return pebbleInterior();
-  if (kind === "coral") return coralInterior();
-  return brineInterior();
+  if (kind === "home") return withLiving(homeInterior());
+  if (kind === "mallow") return withLiving(mallowInterior(), "mallow", 2.55, -2.15);
+  if (kind === "pebble") return withLiving(pebbleInterior(), "pebble", -2.55, 2.15);
+  if (kind === "coral") return withLiving(coralInterior(), "coral", -2.45, 2.05);
+  return withLiving(brineInterior(), "brine", -2.55, -2.35);
 }
 
-function homeInterior(): InteriorRoom {
+function withLiving(room: InteriorDraft, npc?: NpcId, gx = 0, gz = 0): InteriorRoom {
+  const friendRoot = new THREE.Group();
+  friendRoot.name = "friend-root";
+  room.group.add(friendRoot);
+  let giftAnchor: THREE.Object3D | null = null;
+  if (npc) {
+    room.group.add(box(0.72, 0.4, 0.72, PALETTE.wood, gx, 0.22, gz));
+    giftAnchor = new THREE.Object3D();
+    giftAnchor.position.set(gx, 0.55, gz);
+    room.group.add(giftAnchor);
+    room.interacts.push({
+      kind: { type: "gift", id: npc },
+      position: new THREE.Vector3(gx, 0, gz),
+      label: "Leave a gift",
+    });
+  }
+  return { ...room, friendRoot, giftAnchor };
+}
+
+function homeInterior(): InteriorDraft {
   const group = new THREE.Group();
   const w = 9.4;
   const d = 7.8;
@@ -394,7 +418,7 @@ function bookStack(x: number, z: number, cols: number[]) {
   return g;
 }
 
-function mallowInterior(): InteriorRoom {
+function mallowInterior(): InteriorDraft {
   const group = new THREE.Group();
   const w = 8.6;
   const d = 8.2;
@@ -479,7 +503,7 @@ function mallowInterior(): InteriorRoom {
   };
 }
 
-function pebbleInterior(): InteriorRoom {
+function pebbleInterior(): InteriorDraft {
   const group = new THREE.Group();
   const w = 8.8;
   const d = 8.4;
@@ -557,7 +581,7 @@ function pebbleInterior(): InteriorRoom {
   };
 }
 
-function coralInterior(): InteriorRoom {
+function coralInterior(): InteriorDraft {
   const group = new THREE.Group();
   const w = 8.4;
   const d = 7.6;
@@ -633,7 +657,7 @@ function coralInterior(): InteriorRoom {
   };
 }
 
-function brineInterior(): InteriorRoom {
+function brineInterior(): InteriorDraft {
   const group = new THREE.Group();
   const w = 8.2;
   const d = 9.4;
@@ -735,5 +759,46 @@ export function rebuildDecor(room: InteriorRoom, decorations: { id: string; x: n
     vis.scale.setScalar(1.1);
     vis.userData.decor = true;
     room.decorRoot.add(vis);
+  }
+}
+
+export function fillNpcGift(room: InteriorRoom, item: string | null) {
+  const a = room.giftAnchor;
+  if (!a) return;
+  while (a.children.length) a.remove(a.children[0]);
+  if (!item) return;
+  const vis = createItemVisual(item);
+  vis.scale.setScalar(0.8);
+  a.add(vis);
+}
+
+export function fillFriendDecor(room: InteriorRoom, tier: number) {
+  room.friendRoot.clear();
+  if (tier < 1 || room.id === "home") return;
+  const sit = (id: string, x: number, z: number, s = 0.75) => {
+    const vis = createItemVisual(id);
+    vis.position.set(x, 0.18, z);
+    vis.scale.setScalar(s);
+    room.friendRoot.add(vis);
+  };
+  if (room.id === "mallow") {
+    sit("knitted_cushion", -3.05, 2.35, 0.8);
+    if (tier >= 2) sit("wool_lantern", -3.35, 2.05, 0.7);
+    if (tier >= 3) sit("heart_pillow", 3.05, -2.35, 0.75);
+  }
+  if (room.id === "pebble") {
+    sit("geology_book", 3.05, 2.35, 0.85);
+    if (tier >= 2) sit("specimen_jar", 3.25, 2.5, 0.7);
+    if (tier >= 3) sit("potted_clover", -3.15, -2.25, 0.7);
+  }
+  if (room.id === "coral") {
+    sit("hanging_mobile", 3.0, 2.2, 0.7);
+    if (tier >= 2) sit("tropical_rug", 0.2, 2.6, 0.55);
+    if (tier >= 3) sit("stall_banner", -3.05, -2.15, 0.7);
+  }
+  if (room.id === "brine") {
+    sit("captain_lantern", 3.05, -2.35, 0.75);
+    if (tier >= 2) sit("tea_set", 3.25, -2.1, 0.7);
+    if (tier >= 3) sit("helm_wheel", -3.05, 2.3, 0.8);
   }
 }

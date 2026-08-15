@@ -222,21 +222,15 @@ body {
 }
 
 .title-panel p {
-  max-width: 720px;
-  background: #fff;
+  max-width: 640px;
+  background: rgba(255, 250, 243, 0.92);
   border-radius: 18px;
-  padding: 18px 26px;
+  padding: 16px 24px;
   margin: 0 0 18px;
   font-family: "Cormorant Garamond", serif;
   font-size: 20px;
   line-height: 1.45;
   color: #16324a;
-  border: 3px solid transparent;
-  background-image:
-    linear-gradient(#fff, #fff),
-    linear-gradient(90deg, #f2c14e, #ff8a5b, #e56b9e, #7b6cff, #3ecfcf);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
   text-align: center;
   box-shadow: var(--shadow);
 }
@@ -389,18 +383,12 @@ html.touch-on .hud-prompt {
   left: 50%;
   top: 22%;
   transform: translateX(-50%);
-  background: #fff;
+  background: #fffaf3;
   border-radius: 16px;
   padding: 16px 28px;
   font-family: "Cormorant Garamond", serif;
-  font-size: 28px;
+  font-size: 26px;
   box-shadow: var(--shadow);
-  border: 3px solid transparent;
-  background-image:
-    linear-gradient(#fff, #fff),
-    linear-gradient(90deg, #f2c14e, #ff8a5b, #7b6cff, #3ecfcf);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
 }
 
 .banner.found {
@@ -486,23 +474,26 @@ html.touch-on #dialogue {
   display: flex;
   gap: 16px;
   background: #fffaf3;
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 22px;
+  padding: 18px;
   box-shadow: var(--shadow);
-  border: 3px solid transparent;
-  background-image:
-    linear-gradient(#fffaf3, #fffaf3),
-    linear-gradient(90deg, #f2c14e, #ff8a5b, #e56b9e, #7b6cff, #3ecfcf);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
 }
 
 .dialogue-portrait {
-  width: 92px;
-  height: 92px;
-  border-radius: 18px;
+  width: 96px;
+  height: 96px;
+  border-radius: 20px;
   flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
   box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.06);
+}
+
+.dlg-pips {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #e56b9e;
+  margin-top: 2px;
 }
 
 .dialogue-name {
@@ -653,6 +644,16 @@ html.touch-on #dialogue {
   cursor: pointer;
   border: 2px solid #edf2f7;
   text-align: left;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.inv-item img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .inv-item:hover {
@@ -687,6 +688,38 @@ html.touch-on #dialogue {
 
 #sleep-overlay {
   background: radial-gradient(circle at 50% 40%, rgba(40, 30, 70, 0.2), rgba(8, 16, 40, 0.82));
+}
+
+.vol-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  margin: 8px 0 14px;
+}
+
+.vol-row input {
+  flex: 1;
+}
+
+.chart-panel {
+  align-items: center;
+}
+
+#chart-canvas {
+  width: min(92vw, 720px);
+  height: auto;
+  background: #f0d9b5;
+  border-radius: 16px;
+  display: block;
+  margin: 8px 0 12px;
+}
+
+#chart-screen {
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 40, 64, 0.45);
+  backdrop-filter: blur(6px);
 }
 
 html:not(.touch-on) .touch-hud,
