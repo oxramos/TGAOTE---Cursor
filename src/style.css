@@ -892,3 +892,9 @@ html:not(.touch-on) .touch-pause {
     bottom: calc(140px + env(safe-area-inset-bottom));
   }
 }
+
+html.qa-shot #touch-hud,
+html.qa-shot #touch-pause,
+html.qa-shot .hud-help {
+  display: none !important;
+}

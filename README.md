@@ -13,6 +13,19 @@ npm run dev
 
 Then open the local Vite URL. `npm run build` typechecks and bundles to `dist/`.
 
+## Visual QA
+
+Named camera shots freeze the sea and skip the title screen:
+
+```bash
+npm run build
+npm run qa:sweep
+```
+
+That writes PNGs to `qa/out/` (gitignored) and fails if a canvas comes out black. GitHub Actions uploads the same folder as the `visual-sweep` artifact on every push. Open a shot by hand with `http://localhost:5173/?shot=home-shore` (also `home-wide`, `coral-front`, `pebble-door`, `reef`, `cottage`, `boat`, `palm-shore`, `lookout`, `night-shore`).
+
+This is how agents should inspect terrain instead of guessing.
+
 ## Controls
 
 | Key | Action |

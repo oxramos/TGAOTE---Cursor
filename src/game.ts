@@ -9,7 +9,7 @@ import { Eva } from "./models/eva";
 import { RedBoat } from "./models/boat";
 import { Sky } from "./world/sky";
 import { Ocean } from "./world/ocean";
-import { buildArchipelago, heightAt, nearestIsland, beachPoint, berthPoint, pierBerth, pierCleat, PIER_ANG, houseWorldOffset, pushToWater, isLand, yardPoint } from "./world/islands";
+import { buildArchipelago, heightAt, nearestIsland, beachPoint, berthPoint, pierBerth, pierCleat, PIER_ANG, houseWorldOffset, pushToWater, isLand, yardPoint, coastRadius } from "./world/islands";
 import { CollectibleWorld } from "./world/collectibles";
 import { buildInterior, fillShelf, rebuildDecor, fillNpcGift, fillFriendDecor, type InteriorRoom } from "./world/interior";
 import { createNpc } from "./models/animals";
@@ -94,9 +94,16 @@ export class Game {
   private giftTarget: NpcId | "yard" | null = null;
   private yardVis: THREE.Group | null = null;
   private portraits = new Map<NpcId, string>();
+  private qaShot: string | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    const shot = typeof location !== "undefined" ? new URLSearchParams(location.search).get("shot") : null;
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: "high-performance",
+      preserveDrawingBuffer: !!shot,
+    });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
     this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -212,8 +219,12 @@ export class Game {
   start() {
     const shot = new URLSearchParams(location.search).get("shot");
     if (shot) {
+      this.qaShot = shot;
+      document.documentElement.classList.add("qa-shot");
       this.begin(false);
       this.applyShot(shot);
+      this.elapsed = 10;
+      (window as unknown as { __tibuReady?: boolean }).__tibuReady = false;
     }
     this.loop();
   }
@@ -271,10 +282,11 @@ export class Game {
 
   private loop = () => {
     requestAnimationFrame(this.loop);
-    const dt = Math.min(0.05, this.clock.getDelta());
-    this.elapsed += dt;
+    const dt = this.qaShot ? 0 : Math.min(0.05, this.clock.getDelta());
+    if (!this.qaShot) this.elapsed += dt;
     this.update(dt);
     this.render();
+    if (this.qaShot) (window as unknown as { __tibuReady?: boolean }).__tibuReady = true;
     this.input.endFrame();
   };
 
@@ -354,7 +366,7 @@ export class Game {
     const mouse = this.input.mouseDelta();
     const touchLook = document.documentElement.classList.contains("touch-on");
     const inside = !!this.currentInterior;
-    if (!inside) {
+    if (!inside && !this.qaShot) {
       this.camYaw -= mouse.x * (touchLook ? 0.0076 : 0.005);
       this.camPitch = THREE.MathUtils.clamp(this.camPitch + mouse.y * (touchLook ? 0.0062 : 0.004), 0.1, 1.15);
       this.camDist = THREE.MathUtils.clamp(this.camDist + this.input.consumeWheel() * 0.01, 5, 22);
@@ -1740,31 +1752,41 @@ export class Game {
       this.camPitch = pitch;
       this.sailing = false;
     };
-    if (name === "home" || name === "house") {
-      const home = this.houses.find((h) => h.kind === "home")!;
-      const door = this.doorWorld(home);
-      const standX = door.x + Math.sin(home.yaw) * 3.4;
-      const standZ = door.z + Math.cos(home.yaw) * 3.4;
-      put(standX, standZ, home.yaw + Math.PI, name === "house" ? 13 : 11, 0.3);
+    const atDoor = (kind: HouseKind, back = 3.4, dist = 12, pitch = 0.28) => {
+      const h = this.houses.find((x) => x.kind === kind)!;
+      const door = this.doorWorld(h);
+      const fx = Math.sin(h.yaw);
+      const fz = Math.cos(h.yaw);
+      put(door.x + fx * back, door.z + fz * back, h.yaw + Math.PI, dist, pitch);
+      this.eva.group.rotation.y = h.yaw;
+    };
+    const onBeach = (id: string, fromX: number, fromZ: number, dist = 13, pitch = 0.2) => {
+      const isl = ISLANDS.find((i) => i.id === id)!;
+      const p = beachPoint(isl, fromX, fromZ);
+      const ang = Math.atan2(p.z - isl.z, p.x - isl.x);
+      put(p.x, p.z, ang + Math.PI, dist, pitch);
+      this.eva.group.rotation.y = ang;
+    };
+
+    this.save.time = 0.42;
+    if (name === "home" || name === "house") atDoor("home", name === "house" ? 3.4 : 3.4, name === "house" ? 13 : 11, 0.3);
+    if (name === "home-wide") put(8, 16, 0.92, 34, 0.46);
+    if (name === "home-shore" || name === "night-shore") {
+      const isl = ISLANDS[0];
+      const ang = PIER_ANG.home;
+      const r = coastRadius(isl, ang) * 0.84;
+      put(isl.x + Math.cos(ang) * r, isl.z + Math.sin(ang) * r, ang + Math.PI, 15, 0.18);
+      this.eva.group.rotation.y = ang;
     }
-    if (name === "eva") {
-      const home = this.houses.find((h) => h.kind === "home")!;
-      const door = this.doorWorld(home);
-      const fx = Math.sin(home.yaw);
-      const fz = Math.cos(home.yaw);
-      put(door.x + fx * 4.2, door.z + fz * 4.2, home.yaw + Math.PI, 3.6, 0.16);
-      this.eva.group.rotation.y = home.yaw;
-    }
+    if (name === "eva") atDoor("home", 4.2, 3.6, 0.16);
     if (name === "npc" || name === "talk") {
       const mesh = this.npcs.get("mallow")!;
       put(mesh.position.x + 2.2, mesh.position.z + 1.4, 4.1, 6.5, 0.22);
       this.eva.group.lookAt(mesh.position);
       if (name === "talk") this.openDialogue("mallow");
     }
-    if (name === "inspect") {
-      this.openInspect("heart_conch");
-    }
-    if (name === "sea") {
+    if (name === "inspect") this.openInspect("heart_conch");
+    if (name === "sea" || name === "boat") {
       this.sailing = true;
       this.sailAmount = 0.8;
       this.boat.group.position.set(72, 0.2, 30);
@@ -1773,10 +1795,13 @@ export class Game {
       this.camDist = 16;
       this.camPitch = 0.28;
     }
-    if (name === "collect") put(14, 166, 0.2, 8, 0.4);
-    if (name === "stone") put(124, 64, -0.4, 18, 0.28);
-    if (name === "palm") put(108, -96, 0.7, 14, 0.3);
+    if (name === "collect" || name === "reef") put(14, 166, 0.35, 10, 0.38);
+    if (name === "stone" || name === "pebble-door") atDoor("pebble", 5.2, 14, 0.26);
+    if (name === "palm" || name === "coral-front") atDoor("coral", 4.6, 13, 0.26);
+    if (name === "palm-shore") onBeach("palm", 140, -80);
     if (name === "harbor") put(-64, -118, 3.0, 13, 0.32);
+    if (name === "meadow") atDoor("mallow", 4.2, 12, 0.3);
+    if (name === "lookout") put(-166, -22, 0.85, 16, 0.32);
     if (name === "sunset") {
       put(10, 12, 1.1, 16, 0.25);
       this.save.time = 0.74;
@@ -1785,7 +1810,8 @@ export class Game {
       put(6, 8, 0.9, 12, 0.3);
       this.save.time = 0.88;
     }
-    if (name === "interior" || name === "shelf") {
+    if (name === "night-shore") this.save.time = 0.88;
+    if (name === "interior" || name === "shelf" || name === "cottage") {
       const home = this.houses.find((h) => h.kind === "home")!;
       this.enterHouse(home);
       this.save.displayed[0] = "sunset_scallop";
@@ -1797,6 +1823,8 @@ export class Game {
       fillShelf(this.currentInterior!, this.save.displayed);
       this.eva.group.position.copy(this.currentInterior!.spawn);
     }
+    this.sky.update(this.save.time, 0);
+    this.ocean.update(this.elapsed, this.sky.sunDir, this.sky.night);
     this.camera.position.set(this.eva.group.position.x + 8, 8, this.eva.group.position.z + 8);
     this.updateCamera(1, true);
   }

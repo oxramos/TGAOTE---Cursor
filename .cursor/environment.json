@@ -1,0 +1,12 @@
+{
+  "name": "Tibu-Eva",
+  "install": "npm ci && npx playwright install chromium",
+  "ports": [{ "name": "vite", "port": 5173 }],
+  "terminals": [
+    {
+      "name": "vite",
+      "command": "npm run dev",
+      "description": "Vite dev server for the game on port 5173. Visual sweep: npm run qa:sweep after npm run build."
+    }
+  ]
+}

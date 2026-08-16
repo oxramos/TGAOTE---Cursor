@@ -1,0 +1,32 @@
+name: Visual QA
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sweep:
+    name: Island screenshot sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Typecheck and build
+        run: npm run build
+      - name: Screenshot sweep
+        run: npm run qa:sweep
+      - name: Upload shots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-sweep
+          path: qa/out
+          if-no-files-found: warn
