@@ -3,22 +3,33 @@ name: Visual QA
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   sweep:
-    name: Island screenshot sweep
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    name: Island screenshot sweep (2070 Super)
+    # Desktop GitHub Actions runner with the NVIDIA 2070 Super.
+    # `self-hosted` is applied to every local runner. If this job sits queued,
+    # the runner app on that PC is offline.
+    runs-on: [self-hosted]
+    timeout-minutes: 20
+    env:
+      QA_GL: gpu
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
+      - name: NVIDIA
+        continue-on-error: true
+        run: nvidia-smi
       - name: Install
         run: npm ci
       - name: Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        # Full Chromium (new headless), not the GPU-less headless shell.
+        # Skip --with-deps so a desktop runner is not asked for sudo.
+        run: npx playwright install chromium
       - name: Typecheck and build
         run: npm run build
       - name: Screenshot sweep

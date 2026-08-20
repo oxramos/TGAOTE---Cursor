@@ -22,7 +22,7 @@ npm run build
 npm run qa:sweep
 ```
 
-That writes PNGs to `qa/out/` (gitignored) and fails if a canvas comes out black. GitHub Actions uploads the same folder as the `visual-sweep` artifact on every push. Open a shot by hand with `http://localhost:5173/?shot=home-shore` (also `home-wide`, `coral-front`, `pebble-door`, `reef`, `cottage`, `boat`, `palm-shore`, `lookout`, `night-shore`).
+That writes PNGs to `qa/out/` (gitignored) and fails if a canvas comes out black. GitHub Actions runs the same sweep on the self-hosted NVIDIA 2070 Super runner (real GPU WebGL, not SwiftShader) and uploads `visual-sweep`. The runner app on that desktop has to be online or the job waits. Open a shot by hand with `http://localhost:5173/?shot=home-shore` (also `home-wide`, `coral-front`, `pebble-door`, `reef`, `cottage`, `boat`, `palm-shore`, `lookout`, `night-shore`).
 
 This is how agents should inspect terrain instead of guessing.
 
