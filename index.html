@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>The Brave Adventures of Tibu-Eva</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='30' r='22' fill='%23FFE14A'/%3E%3Cellipse cx='32' cy='36' rx='6' ry='4' fill='%23FF8A3D'/%3E%3Ccircle cx='22' cy='32' r='4' fill='%23FF8BA7' opacity='.85'/%3E%3Ccircle cx='42' cy='32' r='4' fill='%23FF8BA7' opacity='.85'/%3E%3Cpath d='M18 26c4 2 8 2 12 0' stroke='%232a1a12' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cpath d='M34 26c4 2 8 2 12 0' stroke='%232a1a12' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,700&family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="title-screen" class="screen">
+        <div class="title-sky">
+          <div class="title-stars"></div>
+          <div class="title-feather left"></div>
+          <div class="title-feather right"></div>
+          <div class="title-cloud">
+            <p class="title-kicker">The Brave Adventures of</p>
+            <h1 class="title-logo">Tibu<span class="gem"></span>Eva</h1>
+          </div>
+        </div>
+        <div class="title-waves"></div>
+        <div class="title-panel">
+          <p>
+            A tiny chick in a cherry-red boat, a handful of islands, and the neighbours who live on them.
+            Collect shells, bring gifts home, and sleep till morning.
+          </p>
+          <div class="title-actions">
+            <button id="btn-new" class="btn primary">Set sail</button>
+            <button id="btn-continue" class="btn" hidden>Continue</button>
+          </div>
+          <p class="title-hint desktop">WASD to move · Shift to run · E to interact · C compass at sea · Tab satchel</p>
+          <p class="title-hint touch">Stick to move · Run to sprint · Go to interact · Compass for a tailwind</p>
+        </div>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div class="hud-top">
+          <div class="hud-chip" id="hud-day">Day 1 · Morning</div>
+          <div class="hud-chip" id="hud-place">Home Isle</div>
+          <button type="button" class="hud-chip wind hidden" id="hud-wind">Compass ↑ · tap</button>
+          <div class="hud-chip treats" id="hud-treats">Treats 0</div>
+          <button type="button" id="touch-pause" class="touch-btn touch-pause" aria-label="Pause">❚❚</button>
+        </div>
+        <div id="hud-prompt" class="hud-prompt hidden"></div>
+        <div id="banner" class="banner hidden"></div>
+        <div class="hud-bottom">
+          <div class="hud-help" id="hud-help">
+            E to pick up · the rest will wait until you need it
+          </div>
+        </div>
+        <div id="touch-hud" class="touch-hud">
+          <div id="touch-stick" class="touch-stick" aria-label="Move">
+            <div class="touch-stick-ring">
+              <div id="touch-stick-knob" class="touch-stick-knob"></div>
+            </div>
+          </div>
+          <div class="touch-cluster">
+            <div class="touch-row small">
+              <button type="button" id="touch-decor" class="touch-btn touch-decor hidden" aria-label="Decorate">Decor</button>
+              <button type="button" id="touch-bag" class="touch-btn touch-bag" aria-label="Satchel">Bag</button>
+              <button type="button" id="touch-sprint" class="touch-btn touch-sprint" aria-label="Run">Run</button>
+              <button type="button" id="touch-look" class="touch-btn touch-look" aria-label="Spyglass">Look</button>
+            </div>
+            <div class="touch-row big">
+              <button type="button" id="touch-jump" class="touch-btn touch-jump" aria-label="Jump">Jump</button>
+              <button type="button" id="touch-go" class="touch-btn touch-go" aria-label="Interact">Go</button>
+            </div>
+          </div>
+        </div>
+        <div id="spyglass-rim" class="hidden"></div>
+      </div>
+
+      <div id="pause-screen" class="screen hidden">
+        <div class="panel">
+          <h2>Paused</h2>
+          <p>The sea can wait a moment.</p>
+          <label class="vol-row">Volume
+            <input type="range" id="vol-slider" min="0" max="100" value="70" />
+          </label>
+          <button id="btn-chart" class="btn" hidden>Sea chart</button>
+          <button id="btn-resume" class="btn primary">Keep exploring</button>
+          <button id="btn-save" class="btn">Save game</button>
+          <button id="btn-title" class="btn">Return to title</button>
+        </div>
+      </div>
+
+      <div id="dialogue" class="hidden">
+        <div class="dialogue-card">
+          <div class="dialogue-portrait" id="dlg-portrait"></div>
+          <div class="dialogue-body">
+            <div class="dialogue-name" id="dlg-name"></div>
+            <div class="dlg-pips" id="dlg-pips"></div>
+            <p id="dlg-text"></p>
+            <div id="dlg-choices" class="dialogue-choices"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="inspect" class="hidden">
+        <div class="inspect-frame">
+          <canvas id="inspect-canvas"></canvas>
+          <div class="inspect-meta">
+            <div class="rarity" id="inspect-rarity"></div>
+            <h2 id="inspect-name"></h2>
+            <p id="inspect-desc"></p>
+            <p class="inspect-hint">Drag to turn it in the light · Esc to tuck it back in the satchel</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="inventory" class="hidden">
+        <div class="panel wide">
+          <div class="inv-header">
+            <h2>Eva's Satchel</h2>
+            <button id="btn-close-inv" class="btn tiny">Close</button>
+          </div>
+          <div class="inv-tabs">
+            <button class="tab active" data-tab="finds">Finds</button>
+            <button class="tab" data-tab="decor">Decor</button>
+          </div>
+          <p class="muted" id="inv-hint">Tap a find to turn it in the light.</p>
+          <div id="inv-grid" class="inv-grid"></div>
+        </div>
+      </div>
+
+      <div id="shelf-picker" class="hidden">
+        <div class="panel wide">
+          <h2>Place on the shelf</h2>
+          <p class="muted">Choose a treasure to display in this nook.</p>
+          <div id="shelf-grid" class="inv-grid"></div>
+          <button id="btn-close-shelf" class="btn">Cancel</button>
+        </div>
+      </div>
+
+      <div id="chart-screen" class="screen hidden">
+        <div class="panel wide chart-panel">
+          <h2>Chart of Quiet Waters</h2>
+          <canvas id="chart-canvas" width="720" height="460"></canvas>
+          <p class="muted" id="chart-rumor"></p>
+          <button id="btn-close-chart" class="btn">Fold the chart</button>
+        </div>
+      </div>
+
+      <div id="sleep-overlay" class="screen hidden">
+        <div class="sleep-card">
+          <p class="title-kicker" id="sleep-kicker">A hush falls over the sea</p>
+          <h2 id="sleep-title">Day 2</h2>
+          <p id="sleep-line">Eva dreams of shells that sing when the tide turns.</p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
