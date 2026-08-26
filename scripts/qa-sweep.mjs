@@ -3,10 +3,14 @@
  * Frozen camera sweep of named ?shot= views.
  * Writes PNGs + a luminance report to qa/out (gitignored).
  * Fails the process if a canvas is black / empty so CI catches WebGL death.
+ *
+ * QA_GL=auto (default) uses NVIDIA when nvidia-smi is present, else SwiftShader.
+ * QA_GL=gpu requires hardware WebGL (the 2070 Super runner).
+ * QA_GL=swiftshader forces software GL.
  */
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, existsSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
@@ -30,6 +34,8 @@ const PORT = Number(process.env.QA_PORT || 4173);
 const BASE = (process.env.QA_BASE || `http://127.0.0.1:${PORT}`).replace(/\/$/, "");
 const OUT = process.env.QA_OUT || "qa/out";
 const START_PREVIEW = process.env.QA_BASE ? false : process.env.QA_NO_PREVIEW !== "1";
+const SOFTWARE_RENDERER =
+  /swiftshader|llvmpipe|softpipe|microsoft basic render|gdi generic|mesa offscreen/i;
 
 function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -61,6 +67,108 @@ function startPreview() {
   return child;
 }
 
+function nvidiaSmiList() {
+  const bins = ["nvidia-smi"];
+  if (process.platform === "win32") {
+    bins.push("C:\\Windows\\System32\\nvidia-smi.exe");
+    bins.push("C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe");
+  } else {
+    bins.push("/usr/bin/nvidia-smi");
+  }
+  for (const bin of bins) {
+    try {
+      if (bin !== "nvidia-smi" && !existsSync(bin)) continue;
+      return execFileSync(bin, ["-L"], { encoding: "utf8", timeout: 8000 }).trim();
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+function glMode() {
+  const forced = (process.env.QA_GL || "auto").toLowerCase();
+  if (forced === "gpu" || forced === "swiftshader") return forced;
+  // NVIDIA box, or a Mac with Metal. Linux cloud VMs stay on SwiftShader.
+  if (nvidiaSmiList()) return "gpu";
+  if (process.platform === "darwin") return "gpu";
+  return "swiftshader";
+}
+
+function softwareArgs() {
+  return ["--use-gl=angle", "--use-angle=swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"];
+}
+
+function hardwareArgs() {
+  const args = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--ignore-gpu-blocklist",
+    "--enable-webgl",
+    "--enable-webgl2",
+    "--enable-gpu",
+    "--enable-gpu-rasterization",
+    "--in-process-gpu",
+    "--disable-gpu-sandbox",
+  ];
+  if (process.platform === "linux") {
+    args.push(
+      "--use-gl=angle",
+      "--use-angle=vulkan",
+      "--enable-features=Vulkan",
+      "--disable-vulkan-surface",
+    );
+  } else if (process.platform === "win32") {
+    args.push("--use-gl=angle", "--use-angle=d3d11");
+  } else {
+    args.push("--use-gl=angle", "--use-angle=metal");
+  }
+  return args;
+}
+
+function launchOptions(mode) {
+  if (mode === "swiftshader") {
+    return { headless: true, args: softwareArgs() };
+  }
+  return {
+    // Full Chromium, new headless — the headless shell cannot use an NVIDIA GPU.
+    channel: process.env.QA_CHANNEL || "chromium",
+    headless: true,
+    args: hardwareArgs(),
+  };
+}
+
+async function probeGpu(browser) {
+  const page = await browser.newPage();
+  try {
+    return await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      const attrs = { failIfMajorPerformanceCaveat: true };
+      const hw = canvas.getContext("webgl2", attrs) || canvas.getContext("webgl", attrs);
+      const any = hw || canvas.getContext("webgl2") || canvas.getContext("webgl");
+      if (!any) return { webgl: false, hardware: false, vendor: "", renderer: "" };
+      const ext = any.getExtension("WEBGL_debug_renderer_info");
+      return {
+        webgl: true,
+        webgl2: any instanceof WebGL2RenderingContext,
+        hardware: !!hw,
+        vendor: ext ? String(any.getParameter(ext.UNMASKED_VENDOR_WEBGL)) : String(any.getParameter(any.VENDOR)),
+        renderer: ext
+          ? String(any.getParameter(ext.UNMASKED_RENDERER_WEBGL))
+          : String(any.getParameter(any.RENDERER)),
+      };
+    });
+  } finally {
+    await page.close();
+  }
+}
+
+function isSoftwareGl(info) {
+  if (!info?.webgl) return true;
+  if (!info.hardware) return true;
+  return SOFTWARE_RENDERER.test(`${info.vendor} ${info.renderer}`);
+}
+
 async function canvasMean(page) {
   return page.evaluate(() => {
     const src = document.querySelector("#game-canvas");
@@ -80,14 +188,27 @@ async function canvasMean(page) {
 
 async function main() {
   await mkdir(OUT, { recursive: true });
+  const mode = glMode();
+  const gpus = nvidiaSmiList();
+  console.log(`QA_GL=${mode}${gpus ? `\n${gpus}` : ""}`);
+
   let preview = null;
   if (START_PREVIEW) preview = startPreview();
   try {
     await waitForOk(BASE);
-    const browser = await chromium.launch({
-      headless: true,
-      args: ["--use-gl=angle", "--use-angle=swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"],
-    });
+    const options = launchOptions(mode);
+    const browser = await chromium.launch(options);
+    const gpu = await probeGpu(browser);
+    console.log(
+      `WebGL vendor=${gpu.vendor || "none"} renderer=${gpu.renderer || "none"} hardware=${!!gpu.hardware}`,
+    );
+    if (mode === "gpu" && isSoftwareGl(gpu)) {
+      await browser.close();
+      throw new Error(
+        `Wanted NVIDIA hardware WebGL on this runner, got ${JSON.stringify(gpu)}. ` +
+          `Chromium is still on software GL — check drivers, and that the runner user can see the 2070 Super.`,
+      );
+    }
     const report = [];
     let failed = 0;
     for (const shot of SHOTS) {
@@ -121,7 +242,10 @@ async function main() {
       console.log(`${mark.padEnd(4)} ${shot.padEnd(14)} mean=${row.mean.toFixed(1)}${row.error ? `  ${row.error}` : ""}`);
     }
     await browser.close();
-    await writeFile(path.join(OUT, "report.json"), JSON.stringify({ base: BASE, failed, report }, null, 2));
+    await writeFile(
+      path.join(OUT, "report.json"),
+      JSON.stringify({ base: BASE, gl: mode, gpus, gpu, failed, report }, null, 2),
+    );
     if (failed) {
       console.error(`\n${failed} shot(s) failed. PNGs are in ${OUT}/`);
       process.exitCode = 1;
