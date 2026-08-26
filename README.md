@@ -26,7 +26,17 @@ That writes PNGs to `qa/out/` (gitignored) and fails if a canvas comes out black
 
 **Agents should look at those pictures** (or play the game in the Cloud Agent desktop browser). Guessing terrain from code is how trenches and blobs slip through.
 
-CI always runs the sweep on GitHub-hosted Ubuntu (software WebGL) and uploads `visual-sweep`. When the 2070 Super desktop runner is online, **Actions → Visual QA → Run workflow** hits the GPU and uploads `visual-sweep-gpu`. For an agent that should *play* the game on that card, start a Cursor worker on the PC (`agent worker start`) and pick that machine for the Cloud Agent — a GitHub runner only takes screenshots; it does not give the agent a mouse.
+CI always runs the sweep on GitHub-hosted Ubuntu (software WebGL) and uploads `visual-sweep`. When a GPU desktop runner is online, **Actions → Visual QA → Run workflow** hits that machine and uploads `visual-sweep-gpu`.
+
+Starting a Cloud Agent from Cursor on the Mac does **not** run on the Mac — that session is still a remote VM. To have an agent play the game on this Mac (Metal WebGL, same screen you see):
+
+```bash
+curl https://cursor.com/install -fsS | bash
+agent login
+agent worker start --name mac
+```
+
+Then at [cursor.com/agents](https://cursor.com/agents) pick **mac** in the environment dropdown. Same idea on the 2070 PC (`--name 2070`). A GitHub runner only takes screenshots; it does not give the agent a mouse. Locally on the Mac, `npm run qa:sweep` uses Metal.
 
 ## Controls
 

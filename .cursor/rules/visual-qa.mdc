@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Visual QA for Tibu-Eva
 
-This is a 3D browser game. Terrain, boats, houses, and lighting cannot be judged from source. **Never say you cannot see the game.** Cloud Agents here have a desktop, Chrome, and `computerUse`. Missing NVIDIA is a fidelity issue, not blindness.
+This is a 3D browser game. Terrain, boats, houses, and lighting cannot be judged from source. **Never say you cannot see the game.** Cloud Agents have a desktop, Chrome, and `computerUse`. Missing NVIDIA (or running on a Mac) is a fidelity issue, not blindness.
+
+A Cloud Agent started from Cursor Desktop still runs in a remote Linux VM unless the user picked a **My Machines** worker. `uname` is the source of truth. On the Mac, `npm run qa:sweep` uses Metal.
 
 ## How to look (pick the fastest that answers the question)
 
@@ -16,7 +18,7 @@ This is a 3D browser game. Terrain, boats, houses, and lighting cannot be judged
 ## Fidelity
 
 - Software WebGL (SwiftShader) is enough for silhouette, clipping, missing meshes, title/HUD, and "is this a trench or a boat."
-- The 2070 Super is for lighting, water, and "does this match my monitor." It is **not** required to do a quality check.
+- The 2070 Super or the Mac's Metal GPU is for lighting, water, and "does this match my monitor." Neither is required to do a quality check.
 - A black canvas is a bug. Fix WebGL or the shot; do not skip QA.
 
 ## Do not

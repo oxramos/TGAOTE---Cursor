@@ -89,7 +89,10 @@ function nvidiaSmiList() {
 function glMode() {
   const forced = (process.env.QA_GL || "auto").toLowerCase();
   if (forced === "gpu" || forced === "swiftshader") return forced;
-  return nvidiaSmiList() ? "gpu" : "swiftshader";
+  // NVIDIA box, or a Mac with Metal. Linux cloud VMs stay on SwiftShader.
+  if (nvidiaSmiList()) return "gpu";
+  if (process.platform === "darwin") return "gpu";
+  return "swiftshader";
 }
 
 function softwareArgs() {
