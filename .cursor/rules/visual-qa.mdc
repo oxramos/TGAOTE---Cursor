@@ -1,0 +1,26 @@
+---
+description: Agents must look at the running game, not guess from code
+alwaysApply: true
+---
+
+# Visual QA for Tibu-Eva
+
+This is a 3D browser game. Terrain, boats, houses, and lighting cannot be judged from source. **Never say you cannot see the game.** Cloud Agents here have a desktop, Chrome, and `computerUse`. Missing NVIDIA is a fidelity issue, not blindness.
+
+## How to look (pick the fastest that answers the question)
+
+1. **Frozen cameras** — `npm run build && npm run qa:sweep`, then **open the PNGs** in `qa/out/` (the image files, not just `report.json`). Shots: `home-wide`, `home-shore`, `house`, `cottage`, `boat`, `coral-front`, `palm-shore`, `pebble-door`, `reef`, `harbor`, `meadow`, `lookout`, `night-shore`. Same views live at `http://127.0.0.1:5173/?shot=home-shore` (skips the title screen).
+2. **Playtest** — start Vite (`npm run dev`, port 5173), use `computerUse` to open Chrome, click **Set sail** or a `?shot=` URL, walk/sail, screenshot. Record a short clip for interactions.
+3. **GitHub Actions artifacts** — download the `visual-sweep` zip and look at those PNGs. That is CI, not a substitute for playtest.
+
+## Fidelity
+
+- Software WebGL (SwiftShader) is enough for silhouette, clipping, missing meshes, title/HUD, and "is this a trench or a boat."
+- The 2070 Super is for lighting, water, and "does this match my monitor." It is **not** required to do a quality check.
+- A black canvas is a bug. Fix WebGL or the shot; do not skip QA.
+
+## Do not
+
+- Skip visual checks because this VM has no `nvidia-smi`.
+- Treat a GitHub self-hosted runner as the agent's eyes. Runners upload PNGs; they do not play the game.
+- Declare terrain/boat/house work done without at least one screenshot of the running canvas.

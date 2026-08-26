@@ -4,13 +4,45 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      gpu:
+        description: Also run on the 2070 Super self-hosted runner (PC must be online)
+        type: boolean
+        default: true
 
 jobs:
   sweep:
+    name: Island screenshot sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QA_GL: swiftshader
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Typecheck and build
+        run: npm run build
+      - name: Screenshot sweep
+        run: npm run qa:sweep
+      - name: Upload shots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-sweep
+          path: qa/out
+          if-no-files-found: warn
+
+  sweep-gpu:
     name: Island screenshot sweep (2070 Super)
-    # Desktop GitHub Actions runner with the NVIDIA 2070 Super.
-    # `self-hosted` is applied to every local runner. If this job sits queued,
-    # the runner app on that PC is offline.
+    # Manual only. An offline desktop runner queues for 24h and then cancels.
+    if: github.event_name == 'workflow_dispatch' && inputs.gpu
     runs-on: [self-hosted]
     timeout-minutes: 20
     env:
@@ -27,8 +59,6 @@ jobs:
       - name: Install
         run: npm ci
       - name: Playwright Chromium
-        # Full Chromium (new headless), not the GPU-less headless shell.
-        # Skip --with-deps so a desktop runner is not asked for sudo.
         run: npx playwright install chromium
       - name: Typecheck and build
         run: npm run build
@@ -38,6 +68,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-sweep
+          name: visual-sweep-gpu
           path: qa/out
           if-no-files-found: warn

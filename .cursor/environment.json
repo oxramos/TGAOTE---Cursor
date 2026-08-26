@@ -6,7 +6,7 @@
     {
       "name": "vite",
       "command": "npm run dev",
-      "description": "Vite dev server for the game on port 5173. Visual sweep: npm run qa:sweep after npm run build."
+      "description": "Vite on port 5173. Visual QA: open Chrome to /?shot=home-shore (computer use) or npm run build && npm run qa:sweep and look at qa/out PNGs. Do not skip visual checks for lack of NVIDIA."
     }
   ]
 }
